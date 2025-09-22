@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Filtre RIASEC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .formation {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+
+        #results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        /* Style pour le bouton et la modale */
+        #aboutBtn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1001;
+        }
+
+        #aboutModal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            right: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.3);
+        }
+
+        #aboutContent {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 24px 32px;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        #closeAbout {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #888;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align: center;">Filtrer les formations Parcoursup par domaine RIASEC🔎</h2>
+    <button id="aboutBtn">À propos</button>
+    <div id="aboutModal">
+        <div id="aboutContent">
+            <button id="closeAbout" title="Fermer">&times;</button>
+            <div style="margin-top: 16px; font-size: 18px;">
+                version du 22/09/2025<br>
+                Les formations ont été classées en reprenant le classement avec la typologie RIASEC par FRANCE TRAVAIL pour les métiers <a href="https://www.data.gouv.fr/datasets/repertoire-operationnel-des-metiers-et-des-emplois-rome/" target="_blank">https://www.data.gouv.fr</a><br>
+                voir csv tout les données du rom et unix_referentiel_macro_competence_riasec_v458_utf8.csv et unix_referentiel_code_rome_riasec_v458_utf8.csv. <br>
+                Les données sur les formations sont issus des open data de Parcoursup 2024 <a href="https://data.enseignementsup-recherche.gouv.fr/explore/dataset/fr-esr-parcoursup/information/?timezone=Europe%2FBerlin&sort=tri" target="_blank">https://data.enseignementsup-recherche.gouv.fr/</a><br>
+                Les taux d'accès globaux et par type de bac sont les moyennes de l'année 2024<br>
+
+            </div>
+        </div>
+    </div>
+    <p style="text-align: center;">Sélectionnez 1 à plusieurs codes RIASEC qui correspondent à votre profil (majeur ou mineur) pour filtrer les résultats.</p>
+    <form id="riasecForm">
+        <label><input type="checkbox" value="R"> Réaliste</label>
+        <label><input type="checkbox" value="I"> Investigateur</label>
+        <label><input type="checkbox" value="A"> Artistique</label>
+        <label><input type="checkbox" value="S"> Social</label>
+        <label><input type="checkbox" value="E"> Entreprenant</label>
+        <label><input type="checkbox" value="C"> Conventionnel</label>
+    </form>
+    <div style="margin: 16px 0; text-align: center;">
+        <label for="typeSelect"><strong>Type de formation :</strong></label>
+        <select id="typeSelect" multiple size="6" style="min-width:180px;">
+            <option value="BTS">BTS</option>
+            <option value="BUT">BUT</option>
+            <option value="Licence">Licence</option>
+            <option value="Licence_Las">Licence_Las</option>
+            <option value="CPGE">CPGE</option>
+            <option value="Ecole d'Ingénieur">Ecole d'Ingénieur</option>
+            <option value="Ecole de Commerce">Ecole de Commerce</option>
+            <option value="EFTS">EFTS</option>
+            <option value="IFSI">IFSI</option>
+            <option value="PASS">PASS</option>
+            <option value="Autre formation">Autre formation</option>
+        </select>
+        <br><span style="font-size:12px;color:#888;">(Ctrl+clic pour sélection multiple)</span>
+    </div>
+    <h3>Formations correspondantes :</h3>
+    <div id="results"></div>
+
+    <script>
+        const formations = [
+            { type: "BTS", nom: "Cybersécurité, Informatique et réseaux, ELectronique - Option A : Informatique et réseaux", majeur: "I", mineur: "C", met: "Analyste cybersécurité, ingénieur réseaux", nbetab: "151", partPb: "78.8", TAt: "46.4", TAg: "30.8", TAt: "40.1", TAp: "29.1" },
+            { type: "BTS", nom: "Management Commercial Opérationnel", majeur: "E", mineur: "C", met: "Responsable commercial, chef de rayon", nbetab: "349", partPb: "67.6", TAt: "49.6", TAg: "20.7", TAt: "43.5", TAp: "35.8" },
+            { type: "BTS", nom: "Professions immobilières", majeur: "E", mineur: "C", met: "Conseiller immobilier, gestionnaire locatif", nbetab: "63", partPb: "77.8", TAt: "42.5", TAg: "40.6", TAt: "37.2", TAp: "22.2" },
+            { type: "BTS", nom: "Services informatiques aux organisations", majeur: "I", mineur: "C", met: "Technicien SI, développeur", nbetab: "171", partPb: "63.7", TAt: "59.9", TAg: "32.3", TAt: "36.3", TAp: "31.3" },
+            { type: "BUT", nom: "Mesures physiques", majeur: "I", mineur: "R", met: "Technicien mesures physiques, ingénieur", nbetab: "29", partPb: "100", TAt: "81.6", TAg: "87.6", TAt: "12.4", TAp: "0" },
+            { type: "BUT", nom: "Génie mécanique et productique", majeur: "R", mineur: "C", met: "Dessinateur-projeteur, technicien méthodes", nbetab: "45", partPb: "100", TAt: "56.4", TAg: "64.6", TAt: "33", TAp: "2.4" },
+            { type: "CPGE", nom: "PCSI", majeur: "I", mineur: "R", met: "Prépa scientifique, vers ingénierie", nbetab: "137", partPb: "89.8", TAt: "56.2", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Comptabilité et gestion", majeur: "C", mineur: "E", met: "Comptable, contrôleur de gestion", nbetab: "339", partPb: "70.5", TAt: "61.7", TAg: "29.3", TAt: "45.9", TAp: "24.8" },
+            { type: "Ecole d'Ingénieur", nom: "Formation d'ingénieur Bac + 5", majeur: "I", mineur: "E", met: "Ingénieur généraliste, selon spécialité", nbetab: "437", partPb: "32.5", TAt: "64.9", TAg: "77.6", TAt: "22.1", TAp: "0" },
+            { type: "BTS", nom: "Assistance technique d'ingénieur", majeur: "R", mineur: "C", met: "Technicien support, assistant ingénieur", nbetab: "28", partPb: "82.1", TAt: "69.7", TAg: "27.6", TAt: "43.2", TAp: "29.1" },
+            { type: "BUT", nom: "Génie électrique et informatique industrielle", majeur: "R", mineur: "I", met: "Automaticien, électronicien", nbetab: "52", partPb: "100", TAt: "68.9", TAg: "63.8", TAt: "33.3", TAp: "3" },
+            { type: "BTS", nom: "Conception et Réalisation de Systèmes Automatiques", majeur: "R", mineur: "C", met: "Automaticien, technicien systèmes", nbetab: "104", partPb: "88.5", TAt: "79.6", TAg: "14.9", TAt: "48.5", TAp: "36.6" },
+            { type: "Licence", nom: "Information et communication", majeur: "C", mineur: "E", met: "Chargé de com, community manager", nbetab: "47", partPb: "76.6", TAt: "63", TAg: "85.9", TAt: "11.2", TAp: "2.9" },
+            { type: "Licence", nom: "Sciences et Techniques des Activités Physiques et Sportives", majeur: "S", mineur: "R", met: "Éducateur sportif, coach, animateur", nbetab: "90", partPb: "91.1", TAt: "37.8", TAg: "88.5", TAt: "8.7", TAp: "2.7" },
+            { type: "CPGE", nom: "ENS Cachan D2", majeur: "C", mineur: "E", met: "Prépa éco-droit, vers métiers juridiques", nbetab: "17", partPb: "100", TAt: "62.9", TAg: "98.7", TAt: "1.3", TAp: "0" },
+            { type: "BTS", nom: "Gestion de la PME", majeur: "C", mineur: "E", met: "Assistant gestion, responsable PME", nbetab: "280", partPb: "68.9", TAt: "61.1", TAg: "17.8", TAt: "45.5", TAp: "36.7" },
+            { type: "BUT", nom: "Techniques de commercialisation", majeur: "E", mineur: "C", met: "Commercial, chef de produit", nbetab: "85", partPb: "100", TAt: "31.2", TAg: "56", TAt: "41.8", TAp: "2.3" },
+            { type: "BTS", nom: "Métiers de la mode-vêtements", majeur: "A", mineur: "R", met: "Styliste, modéliste, couturier", nbetab: "30", partPb: "90", TAt: "28.2", TAg: "19.2", TAt: "15.3", TAp: "65.6" },
+            { type: "Autre formation", nom: "Techn. en énergies renouvelables opt. a énergie électrique", majeur: "R", mineur: "C", met: "Technicien énergie, installateur solaire", nbetab: "24", partPb: "79.2", TAt: "75.6", TAg: "4.8", TAt: "6.5", TAp: "88.9" },
+            { type: "Autre formation", nom: "Bicursus Architecture Ingénieur", majeur: "R", mineur: "E", met: "Architecte bâtiment, ingénieur génie civil", nbetab: "4", partPb: "75", TAt: "11", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Arts du spectacle", majeur: "A", mineur: "R", met: "Comédien, régisseur, scénographe", nbetab: "30", partPb: "96.7", TAt: "72.5", TAg: "85.9", TAt: "9.6", TAp: "4.5" },
+            { type: "Licence", nom: "Langues étrangères appliquées", majeur: "C", mineur: "S", met: "Traducteur, chargé relations internationales", nbetab: "320", partPb: "94.1", TAt: "84.5", TAg: "81.3", TAt: "12.6", TAp: "6.1" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Economie, société et droit", majeur: "C", mineur: "E", met: "Juriste, analyste socio-éco", nbetab: "1", partPb: "100", TAt: "11", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Métiers de la forme", majeur: "S", mineur: "R", met: "Coach sportif, animateur forme", nbetab: "6", partPb: "100", TAt: "19.8", TAg: "71.7", TAt: "21", TAp: "7.8" },
+            { type: "Autre formation", nom: "Animation et gestion des activités physiques, sportives ou culturelles", majeur: "S", mineur: "E", met: "Animateur socio-sportif, directeur sportif", nbetab: "23", partPb: "100", TAt: "39.9", TAg: "69.7", TAt: "20.4", TAp: "9.7" },
+            { type: "BTS", nom: "Gestion des transports et logistique associée", majeur: "C", mineur: "R", met: "Logisticien, gestionnaire transport", nbetab: "57", partPb: "80.7", TAt: "51.9", TAg: "18", TAt: "35.8", TAp: "46.2" },
+            { type: "Autre formation", nom: "Espace", majeur: "R", mineur: "I", met: "Technicien spatial, ingénieur aéro", nbetab: "56", partPb: "75", TAt: "21.9", TAg: "53", TAt: "42.2", TAp: "4.7" },
+            { type: "Autre formation", nom: "Objet", majeur: "A", mineur: "R", met: "Designer produit, maquettiste", nbetab: "60", partPb: "81.7", TAt: "41.5", TAg: "49.3", TAt: "43.5", TAp: "7.3" },
+            { type: "IFSI", nom: "D.E Infirmier", majeur: "S", mineur: "I", met: "Infirmier, cadre de santé", nbetab: "344", partPb: "81.1", TAt: "43.5", TAg: "60.7", TAt: "28.5", TAp: "10.5" },
+            { type: "BTS", nom: "Bioanalyses et contrôles", majeur: "I", mineur: "R", met: "Technicien bio, analyste laboratoire", nbetab: "42", partPb: "73.8", TAt: "58.6", TAg: "47.5", TAt: "46.3", TAp: "6.2" },
+            { type: "EFTS", nom: "D.E Assistant de Service Social", majeur: "S", mineur: "C", met: "Assistant social, travailleur social", nbetab: "73", partPb: "1.4", TAt: "55.7", TAg: "54.7", TAt: "30.6", TAp: "14.7" },
+            { type: "Licence", nom: "Economie", majeur: "C", mineur: "E", met: "Analyste économique, chargé d’études", nbetab: "30", partPb: "90", TAt: "71", TAg: "91.8", TAt: "7.2", TAp: "1.1" },
+            { type: "BTS", nom: "productions animales", majeur: "R", mineur: "S", met: "Éleveur, technicien agricole", nbetab: "42", partPb: "64.3", TAt: "71.4", TAg: "35.7", TAt: "41.2", TAp: "23.1" },
+            { type: "Licence", nom: "Langues, littératures et civilisations étrangères et régionales", majeur: "C", mineur: "A", met: "Traducteur, enseignant, médiateur culturel", nbetab: "488", partPb: "97.3", TAt: "88.4", TAg: "84", TAt: "9.6", TAp: "6.2" },
+            { type: "Autre formation", nom: "Numérique", majeur: "I", mineur: "C", met: "Développeur, UX designer, data analyst", nbetab: "19", partPb: "52.6", TAt: "41.2", TAg: "50.4", TAt: "40.8", TAp: "8.8" },
+            { type: "BTS", nom: "Economie sociale familiale", majeur: "S", mineur: "C", met: "Conseiller ESF, animateur social", nbetab: "132", partPb: "62.1", TAt: "62.4", TAg: "23.7", TAt: "35.4", TAp: "41" },
+            { type: "Autre formation", nom: "FCIL", majeur: "Variable", mineur: "Variable", met: "Formation complémentaire, dépend du domaine", nbetab: "103", partPb: "84.5", TAt: "68.8", TAg: "21.2", TAt: "15.1", TAp: "61.8" },
+            { type: "BTS", nom: "Conception et réalisation en chaudronnerie industrielle", majeur: "R", mineur: "C", met: "Chaudronnier, technicien industriel", nbetab: "35", partPb: "94.3", TAt: "70.4", TAg: "13.4", TAt: "29.3", TAp: "57.2" },
+            { type: "EFTS", nom: "D.E Educateur Spécialisé", majeur: "S", mineur: "E", met: "Éducateur, animateur socio-éducatif", nbetab: "88", partPb: "1.1", TAt: "42.6", TAg: "53.4", TAt: "29.8", TAp: "16.8" },
+            { type: "Licence", nom: "Droit", majeur: "C", mineur: "E", met: "Juriste, avocat, greffier", nbetab: "261", partPb: "85.8", TAt: "53.1", TAg: "92.7", TAt: "5.4", TAp: "1.1" },
+            { type: "BTS", nom: "Travaux publics", majeur: "R", mineur: "C", met: "Conducteur de travaux, technicien TP", nbetab: "32", partPb: "93.8", TAt: "68.5", TAg: "24.1", TAt: "44.3", TAp: "31.7" },
+            { type: "IFSI", nom: "D.E Technicien de Laboratoire Médical", majeur: "I", mineur: "R", met: "Technicien biomédical, analyste", nbetab: "3", partPb: "66.7", TAt: "57.7", TAg: "75.3", TAt: "23.7", TAp: "1" },
+            { type: "Ecole de Commerce", nom: "Formation des écoles de commerce et de management Bac + 5", majeur: "E", mineur: "C", met: "Manager, consultant, entrepreneur", nbetab: "55", partPb: "0", TAt: "44.6", TAg: "92.5", TAt: "7.4", TAp: "0" },
+            { type: "CPGE", nom: "ECT - Option technologique", majeur: "C", mineur: "E", met: "Prépa commerce, vers gestion/finance", nbetab: "47", partPb: "89.4", TAt: "67.3", TAg: "0", TAt: "87.2", TAp: "12.8" },
+            { type: "Ecole de Commerce", nom: "Formation des écoles de commerce et de management Bac + 3", majeur: "E", mineur: "C", met: "Commercial, chargé de clientèle", nbetab: "125", partPb: "3.2", TAt: "69.4", TAg: "83", TAt: "15.1", TAp: "1.8" },
+            { type: "BTS", nom: "Support à l'action managériale", majeur: "C", mineur: "E", met: "Assistant manager, gestion administrative", nbetab: "238", partPb: "75.6", TAt: "62.2", TAg: "15.9", TAt: "47.8", TAp: "36.3" },
+            { type: "Autre formation", nom: "Formation des écoles supérieure d'art Bac + 5", majeur: "A", mineur: "C", met: "Artiste, designer, scénographe", nbetab: "13", partPb: "15.4", TAt: "45.2", TAg: "80.4", TAt: "18", TAp: "1.8" },
+            { type: "Autre formation", nom: "Animation-gestion de projets dans le secteur sportif", majeur: "S", mineur: "E", met: "Coordinateur sportif, chef de projet", nbetab: "59", partPb: "78", TAt: "81.6", TAg: "38.6", TAt: "21.2", TAp: "40.2" },
+            { type: "Autre formation", nom: "Diplôme National d'Art", majeur: "A", mineur: "R", met: "Plasticien, artiste visuel, illustrateur", nbetab: "57", partPb: "100", TAt: "31", TAg: "84.5", TAt: "11.6", TAp: "3.9" },
+            { type: "Ecole de Commerce", nom: "Formation des écoles de commerce et de management Bac + 4", majeur: "E", mineur: "C", met: "Chef de projet, analyste marketing", nbetab: "42", partPb: "2.4", TAt: "42.4", TAg: "91.8", TAt: "5.6", TAp: "0.2" },
+            { type: "Licence", nom: "Sociologie", majeur: "C", mineur: "S", met: "Sociologue, chargé d’études sociales", nbetab: "47", partPb: "97.9", TAt: "83.1", TAg: "84", TAt: "11.7", TAp: "4.3" },
+            { type: "BTS", nom: "Gestion et protection de la nature", majeur: "R", mineur: "S", met: "Technicien environnement, garde nature", nbetab: "40", partPb: "62.5", TAt: "57.7", TAg: "46.1", TAt: "27.3", TAp: "26.6" },
+            { type: "PASS", nom: "Parcours d'Accès Spécifique Santé (PASS)", majeur: "I", mineur: "S", met: "Médecin, pharmacien, dentiste", nbetab: "284", partPb: "100", TAt: "39.8", TAg: "97.6", TAt: "1.8", TAp: "0.6" },
+            { type: "Licence_Las", nom: "Economie et gestion", majeur: "C", mineur: "E", met: "Analyste, gestionnaire, économiste", nbetab: "25", partPb: "100", TAt: "55.9", TAg: "90", TAt: "7.3", TAp: "2.9" },
+            { type: "Licence_Las", nom: "Droit", majeur: "C", mineur: "E", met: "Juriste, avocat, greffier", nbetab: "52", partPb: "100", TAt: "72", TAg: "84.4", TAt: "11.5", TAp: "4" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Arts", majeur: "A", mineur: "C", met: "Artiste, designer, scénographe", nbetab: "19", partPb: "89.5", TAt: "40.5", TAg: "89.9", TAt: "8.1", TAp: "1.9" },
+            { type: "Licence_Las", nom: "Psychologie", majeur: "S", mineur: "I", met: "Psychologue, conseiller", nbetab: "21", partPb: "95.2", TAt: "20.1", TAg: "93.8", TAt: "4.2", TAp: "1.7" },
+            { type: "Licence_Las", nom: "Chimie", majeur: "I", mineur: "R", met: "Chimiste, technicien labo", nbetab: "24", partPb: "100", TAt: "69.8", TAg: "96.4", TAt: "3.2", TAp: "0.3" },
+            { type: "BTS", nom: "Systèmes constructifs bois et habitat", majeur: "R", mineur: "C", met: "Charpentier, technicien bâtiment", nbetab: "25", partPb: "80", TAt: "66.3", TAg: "26.3", TAt: "32.9", TAp: "36.8" },
+            { type: "Licence_Las", nom: "Sciences de la terre", majeur: "R", mineur: "I", met: "Géologue, hydrologue", nbetab: "4", partPb: "100", TAt: "42.5", TAg: "99.8", TAt: "0", TAp: "0.3" },
+            { type: "BTS", nom: "Management en hôtellerie restauration", majeur: "E", mineur: "C", met: "Manager hôtel, chef de service", nbetab: "82", partPb: "75.6", TAt: "82", TAg: "15.5", TAt: "39.4", TAp: "45.1" },
+            { type: "Licence", nom: "Psychologie", majeur: "S", mineur: "I", met: "Psychologue, clinicien", nbetab: "50", partPb: "80", TAt: "39.8", TAg: "85.3", TAt: "9.1", TAp: "3.5" },
+            { type: "CPGE", nom: "MPSI", majeur: "I", mineur: "R", met: "Prépa ingénieur, vers métiers scientifiques", nbetab: "124", partPb: "82.3", TAt: "43.2", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Sciences Po / Instituts d'études politiques - Sciences Humaines et Sociales - Grade Master", majeur: "C", mineur: "S", met: "Analyste politique, chargé de mission", nbetab: "32", partPb: "100", TAt: "12.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "CPGE", nom: "ECG - Mathématiques approfondies + ESH", majeur: "C", mineur: "E", met: "Prépa commerce, vers finance/économie", nbetab: "49", partPb: "65.3", TAt: "50.5", TAg: "99.9", TAt: "0.1", TAp: "0" },
+            { type: "CPGE", nom: "ECG - Mathématiques appliquées + ESH", majeur: "C", mineur: "E", met: "Idem, orientation plus quantitative", nbetab: "96", partPb: "70.8", TAt: "58.2", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Licence professionnelle", majeur: "Variable", mineur: "Variable", met: "Dépend du domaine pro ciblé", nbetab: "22", partPb: "77.3", TAt: "48.5", TAg: "66", TAt: "24", TAp: "9.8" },
+            { type: "Licence", nom: "Mathématiques", majeur: "I", mineur: "R", met: "Mathématicien, data scientist", nbetab: "110", partPb: "99.1", TAt: "74.1", TAg: "96.6", TAt: "2.7", TAp: "0.7" },
+            { type: "BUT", nom: "Carrières juridiques", majeur: "C", mineur: "E", met: "Assistant juridique, greffier", nbetab: "14", partPb: "92.9", TAt: "43.3", TAg: "53.4", TAt: "46.1", TAp: "0.4" },
+            { type: "Autre formation", nom: "Cycle universitaire préparatoire aux grandes écoles - Parcours Informatique, Mathématiques", majeur: "I", mineur: "C", met: "Développeur, ingénieur informatique", nbetab: "1", partPb: "100", TAt: "74", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Conseil et commercialisation de solutions techniques", majeur: "E", mineur: "R", met: "Technico-commercial, conseiller technique", nbetab: "111", partPb: "82", TAt: "66.4", TAg: "20.9", TAt: "42", TAp: "37.2" },
+            { type: "Licence", nom: "Sciences des systèmes communicants", majeur: "I", mineur: "C", met: "Ingénieur télécom, développeur", nbetab: "1", partPb: "100", TAt: "70", TAg: "82", TAt: "18", TAp: "1" },
+            { type: "BTS", nom: "Management économique de la construction", majeur: "C", mineur: "R", met: "Économiste de la construction, conducteur", nbetab: "42", partPb: "83.3", TAt: "59.7", TAg: "19.7", TAt: "38", TAp: "42.5" },
+            { type: "BTS", nom: "Management opérationnel de la sécurité", majeur: "R", mineur: "C", met: "Responsable sécurité, agent prévention", nbetab: "39", partPb: "74.4", TAt: "46.3", TAg: "25.6", TAt: "28.3", TAp: "46.2" },
+            { type: "BTS", nom: "Gestion et maitrise de l'eau", majeur: "R", mineur: "C", met: "Technicien hydraulique, gestionnaire eau", nbetab: "27", partPb: "70.4", TAt: "91.4", TAg: "33.4", TAt: "52.6", TAp: "14.2" },
+            { type: "Autre formation", nom: "Aéronautique option avions à moteurs à pistons", majeur: "R", mineur: "I", met: "Technicien aéronautique, mécanicien avion", nbetab: "3", partPb: "100", TAt: "52.7", TAg: "9.7", TAt: "6.3", TAp: "84" },
+            { type: "Ecole d'Ingénieur", nom: "Formation Bac + 3", majeur: "I", mineur: "R", met: "Ingénieur junior, selon spécialité", nbetab: "85", partPb: "14.1", TAt: "67.7", TAg: "79", TAt: "18.3", TAp: "0.4" },
+            { type: "Licence", nom: "Géographie et aménagement", majeur: "C", mineur: "R", met: "Urbaniste, géographe, chargé d’études", nbetab: "63", partPb: "100", TAt: "89.9", TAg: "87.3", TAt: "9.1", TAp: "3.6" },
+            { type: "Licence", nom: "Sciences de la vie", majeur: "I", mineur: "R", met: "Biologiste, technicien bio", nbetab: "72", partPb: "95.8", TAt: "66.3", TAg: "93.9", TAt: "5.5", TAp: "0.6" },
+            { type: "Autre formation", nom: "Cybersécurité", majeur: "I", mineur: "C", met: "Analyste cybersécurité, ingénieur réseau", nbetab: "25", partPb: "84", TAt: "78", TAg: "30.5", TAt: "15.4", TAp: "50.2" },
+            { type: "Licence", nom: "Administration économique et sociale", majeur: "C", mineur: "E", met: "Gestionnaire, chargé d’administration", nbetab: "59", partPb: "98.3", TAt: "74.4", TAg: "76.7", TAt: "19.3", TAp: "4" },
+            { type: "BTS", nom: "Métiers de l'eau", majeur: "R", mineur: "C", met: "Technicien hydraulique, gestion eau", nbetab: "18", partPb: "77.8", TAt: "82.8", TAg: "30.2", TAt: "56.5", TAp: "13.4" },
+            { type: "Licence", nom: "Philosophie", majeur: "I", mineur: "A", met: "Enseignant, chercheur, médiateur culturel", nbetab: "55", partPb: "90.9", TAt: "81.8", TAg: "89.7", TAt: "7.5", TAp: "2.7" },
+            { type: "Autre formation", nom: "Production et réparation de produits électroniques", majeur: "R", mineur: "C", met: "Électronicien, technicien SAV", nbetab: "14", partPb: "71.4", TAt: "82.1", TAg: "7.8", TAt: "6.5", TAp: "78.6" },
+            { type: "BTS", nom: "Aménagements paysagers", majeur: "R", mineur: "S", met: "Paysagiste, chef de chantier", nbetab: "40", partPb: "72.5", TAt: "82.1", TAg: "33.7", TAt: "33.7", TAp: "32.9" },
+            { type: "BTS", nom: "Electrotechnique", majeur: "R", mineur: "I", met: "Électrotechnicien, automaticien", nbetab: "170", partPb: "85.9", TAt: "70.1", TAg: "11.7", TAt: "33.4", TAp: "54.9" },
+            { type: "BUT", nom: "Management de la Logistique et des Transports", majeur: "C", mineur: "R", met: "Logisticien, gestionnaire transport", nbetab: "24", partPb: "100", TAt: "58.5", TAg: "50", TAt: "41", TAp: "8.9" },
+            { type: "BTS", nom: "Métiers de la mesure", majeur: "I", mineur: "R", met: "Métrologue, technicien mesures physiques", nbetab: "15", partPb: "80", TAt: "82.3", TAg: "35.4", TAt: "59.9", TAp: "5" },
+            { type: "BTS", nom: "Négociation et digitalisation de la Relation Client", majeur: "E", mineur: "C", met: "Commercial, conseiller client", nbetab: "251", partPb: "72.5", TAt: "40", TAg: "18.3", TAt: "43.7", TAp: "38" },
+            { type: "BTS", nom: "Viticulture-Oenologie", majeur: "R", mineur: "S", met: "Viticulteur, œnologue, technicien agricole", nbetab: "15", partPb: "86.7", TAt: "83.5", TAg: "51", TAt: "31.3", TAp: "17.5" },
+            { type: "BUT", nom: "Carrières sociales Parcours assistance sociale", majeur: "S", mineur: "C", met: "Assistant social, éducateur spécialisé", nbetab: "6", partPb: "100", TAt: "26.2", TAg: "42.7", TAt: "53.2", TAp: "4.2" },
+            { type: "BTS", nom: "Métiers de l'audio-visuel opt : montage et post-production", majeur: "A", mineur: "C", met: "Monteur vidéo, technicien audiovisuel", nbetab: "21", partPb: "71.4", TAt: "17.3", TAg: "73.2", TAt: "12.6", TAp: "14.2" },
+            { type: "CPGE", nom: "TSI", majeur: "R", mineur: "I", met: "Prépa techno vers ingénierie", nbetab: "47", partPb: "89.4", TAt: "77.6", TAg: "0", TAt: "91.4", TAp: "8.6" },
+            { type: "BUT", nom: "Informatique", majeur: "I", mineur: "C", met: "Développeur, analyste, ingénieur logiciel", nbetab: "50", partPb: "100", TAt: "42", TAg: "67.3", TAt: "32.6", TAp: "0.1" },
+            { type: "Autre formation", nom: "Accueil dans les transports", majeur: "S", mineur: "C", met: "Agent d’accueil, médiateur mobilité", nbetab: "6", partPb: "50", TAt: "66.8", TAg: "20", TAt: "9.7", TAp: "70.5" },
+            { type: "CPGE", nom: "PTSI", majeur: "R", mineur: "I", met: "Prépa techno vers génie mécanique/élec", nbetab: "67", partPb: "92.5", TAt: "66.1", TAg: "99.8", TAt: "0.2", TAp: "0" },
+            { type: "BTS", nom: "Analyse, conduite et stratégie de l'entreprise agricole", majeur: "R", mineur: "C", met: "Agriculteur, conseiller agricole", nbetab: "92", partPb: "57.6", TAt: "86.3", TAg: "16", TAt: "41.6", TAp: "42.4" },
+            { type: "BTS", nom: "Conception des processus de réalisation de produits (1ère année commune)", majeur: "R", mineur: "C", met: "Technicien méthodes, industrialisation", nbetab: "86", partPb: "97.7", TAt: "78.4", TAg: "12.7", TAt: "54.4", TAp: "32.8" },
+            { type: "Autre formation", nom: "Hôtellerie restauration", majeur: "E", mineur: "S", met: "Manager hôtel, chef de rang, réceptionniste", nbetab: "57", partPb: "77.2", TAt: "68.4", TAg: "68.4", TAt: "21.8", TAp: "9.9" },
+            { type: "CPGE", nom: "Lettres", majeur: "A", mineur: "C", met: "Prépa littéraire, vers enseignement/culture", nbetab: "99", partPb: "89.9", TAt: "79.2", TAg: "99.8", TAt: "0.2", TAp: "0" },
+            { type: "BUT", nom: "Métiers de la Transition et de l'Efficacité Énergétiques", majeur: "R", mineur: "C", met: "Technicien énergie, ingénieur efficacité", nbetab: "19", partPb: "100", TAt: "77", TAg: "54.4", TAt: "45.1", TAp: "0.5" },
+            { type: "BUT", nom: "Gestion des entreprises et des administrations", majeur: "C", mineur: "E", met: "Gestionnaire, comptable, responsable admin", nbetab: "80", partPb: "100", TAt: "40.2", TAg: "58.8", TAt: "40.8", TAp: "0.4" },
+            { type: "BTS", nom: "Métiers de l'audio-visuel opt : gestion de la production", majeur: "C", mineur: "A", met: "Régisseur, coordinateur de production", nbetab: "21", partPb: "76.2", TAt: "28.2", TAg: "68.4", TAt: "11.6", TAp: "20.1" },
+            { type: "BTS", nom: "Service et prestation des secteurs sanitaire et social", majeur: "S", mineur: "C", met: "Assistant social, coordinateur médico-social", nbetab: "127", partPb: "67.7", TAt: "67.4", TAg: "17.5", TAt: "40.4", TAp: "42.1" },
+            { type: "BTS", nom: "Géologie appliquée", majeur: "R", mineur: "I", met: "Géologue, technicien géosciences", nbetab: "1", partPb: "100", TAt: "86", TAg: "93", TAt: "5", TAp: "2" },
+            { type: "BUT", nom: "Génie biologique parcours biologie médicale et biotechnologie", majeur: "I", mineur: "R", met: "Technicien bio, ingénieur biotechnologie", nbetab: "19", partPb: "100", TAt: "28.4", TAg: "67.4", TAt: "32.6", TAp: "0" },
+            { type: "Licence", nom: "Lettres", majeur: "A", mineur: "C", met: "Enseignant, écrivain, médiateur culturel", nbetab: "165", partPb: "91.5", TAt: "85.8", TAg: "88.4", TAt: "6.8", TAp: "4.8" },
+            { type: "BTS", nom: "Maintenance des systèmes - option A Systèmes de production", majeur: "R", mineur: "C", met: "Technicien maintenance, électromécanicien", nbetab: "108", partPb: "89.8", TAt: "72.7", TAg: "10.1", TAt: "32", TAp: "57.8" },
+            { type: "Licence", nom: "Arts plastiques", majeur: "A", mineur: "R", met: "Plasticien, artiste visuel", nbetab: "14", partPb: "92.9", TAt: "68.1", TAg: "74.5", TAt: "18.8", TAp: "6.6" },
+            { type: "BTS", nom: "Commerce International", majeur: "E", mineur: "C", met: "Commercial export, chargé d’affaires", nbetab: "166", partPb: "60.8", TAt: "38", TAg: "46.5", TAt: "39.2", TAp: "14.3" },
+            { type: "BTS", nom: "Analyses de biologie médicale", majeur: "I", mineur: "R", met: "Technicien biomédical, analyste", nbetab: "36", partPb: "83.3", TAt: "44", TAg: "46.4", TAt: "47.7", TAp: "6" },
+            { type: "BTS", nom: "Analyses biologiques, biotechnologiques, agricoles et environnementales", majeur: "I", mineur: "R", met: "Technicien bio, environnement, agro", nbetab: "29", partPb: "65.5", TAt: "74.5", TAg: "52.8", TAt: "33.4", TAp: "13.8" },
+            { type: "Licence", nom: "Génie civil", majeur: "R", mineur: "C", met: "Ingénieur BTP, conducteur de travaux", nbetab: "7", partPb: "100", TAt: "87.9", TAg: "80", TAt: "17.6", TAp: "2.4" },
+            { type: "Licence", nom: "Histoire", majeur: "C", mineur: "A", met: "Enseignant, archiviste, chargé de patrimoine", nbetab: "147", partPb: "86.4", TAt: "79.2", TAg: "91.1", TAt: "5.8", TAp: "3.1" },
+            { type: "BTS", nom: "Enveloppe des bâtiments : conception et réalisation", majeur: "R", mineur: "C", met: "Technicien façade, conducteur de travaux", nbetab: "16", partPb: "93.8", TAt: "66.6", TAg: "15.6", TAt: "43.4", TAp: "41.2" },
+            { type: "BTS", nom: "Technico-commercial - Spécialité univers jardins et animaux de compagnie", majeur: "E", mineur: "R", met: "Conseiller animalerie, technico-commercial", nbetab: "23", partPb: "52.2", TAt: "84.4", TAg: "20.1", TAt: "26", TAp: "49.3" },
+            { type: "Licence", nom: "Arts", majeur: "A", mineur: "C", met: "Artiste, médiateur culturel, enseignant", nbetab: "34", partPb: "88.2", TAt: "58.3", TAg: "82.2", TAt: "13.5", TAp: "4.4" },
+            { type: "Licence", nom: "Economie et gestion", majeur: "C", mineur: "E", met: "Analyste, gestionnaire, économiste", nbetab: "98", partPb: "88.8", TAt: "60.5", TAg: "89.9", TAt: "8.7", TAp: "1.3" },
+            { type: "Licence", nom: "Histoire de l'art et archéologie", majeur: "A", mineur: "C", met: "Archéologue, historien d’art, conservateur", nbetab: "37", partPb: "89.2", TAt: "86.9", TAg: "85", TAt: "9.7", TAp: "5.3" },
+            { type: "BTS", nom: "Métiers du Végétal : Alimentation, Ornement, Environnement", majeur: "R", mineur: "S", met: "Horticulteur, conseiller agricole", nbetab: "27", partPb: "59.3", TAt: "90.4", TAg: "44.1", TAt: "25.4", TAp: "30.6" },
+            { type: "BTS", nom: "Cybersécurité, Informatique et réseaux, ELectronique - Option B : Electronique et réseaux", majeur: "I", mineur: "R", met: "Technicien réseau, analyste sécurité", nbetab: "110", partPb: "84.5", TAt: "51", TAg: "24.6", TAt: "37", TAp: "38.4" },
+            { type: "BTS", nom: "Conception et industrialisation en microtechniques", majeur: "R", mineur: "C", met: "Microtechnicien, technicien méthodes", nbetab: "28", partPb: "92.9", TAt: "73.9", TAg: "18.2", TAt: "49.8", TAp: "32" },
+            { type: "BUT", nom: "Science et génie des matériaux", majeur: "R", mineur: "I", met: "Ingénieur matériaux, technicien labo", nbetab: "14", partPb: "100", TAt: "76.3", TAg: "75.8", TAt: "24.1", TAp: "0.1" },
+            { type: "BTS", nom: "Développement et Réalisation Bois", majeur: "R", mineur: "C", met: "Technicien bois, menuisier industriel", nbetab: "18", partPb: "94.4", TAt: "56.1", TAg: "21.9", TAt: "27.6", TAp: "44.9" },
+            { type: "CPGE", nom: "Ecole normale supérieure Paris Saclay – arts et design", majeur: "A", mineur: "C", met: "Designer, scénographe, artiste visuel", nbetab: "5", partPb: "100", TAt: "33.6", TAg: "70.2", TAt: "29.6", TAp: "0.2" },
+            { type: "CPGE", nom: "TB", majeur: "R", mineur: "I", met: "Prépa techno-biologie, vers agro/vétérinaire", nbetab: "8", partPb: "100", TAt: "69.5", TAg: "0", TAt: "100", TAp: "0" },
+            { type: "BTS", nom: "Conception de produits industriels", majeur: "R", mineur: "C", met: "Technicien conception, dessinateur CAO", nbetab: "75", partPb: "93.3", TAt: "77.2", TAg: "18.6", TAt: "60.1", TAp: "21.2" },
+            { type: "BTS", nom: "Banque", majeur: "C", mineur: "E", met: "Conseiller bancaire, chargé de clientèle", nbetab: "60", partPb: "73.3", TAt: "48.7", TAg: "36.5", TAt: "42.5", TAp: "21" },
+            { type: "BTS", nom: "Métiers de l'audio-visuel opt : métiers du son", majeur: "A", mineur: "R", met: "Ingénieur du son, technicien audio", nbetab: "21", partPb: "71.4", TAt: "20.6", TAg: "72", TAt: "12.3", TAp: "15.6" },
+            { type: "Autre formation", nom: "Webmaster et métiers de l'internet", majeur: "I", mineur: "C", met: "Webmaster, intégrateur web", nbetab: "2", partPb: "100", TAt: "51.5", TAg: "77.5", TAt: "18", TAp: "4.5" },
+            { type: "BTS", nom: "Motorisations toutes énergies", majeur: "R", mineur: "C", met: "Technicien motorisation, électromécanicien", nbetab: "11", partPb: "81.8", TAt: "60.5", TAg: "37", TAt: "32.8", TAp: "30.3" },
+            { type: "CPGE", nom: "BCPST", majeur: "I", mineur: "R", met: "Prépa bio, agro, vétérinaire", nbetab: "54", partPb: "92.6", TAt: "52.9", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Conception et réalisation de carrosseries", majeur: "R", mineur: "C", met: "Carrossier, technicien conception", nbetab: "7", partPb: "85.7", TAt: "70.9", TAg: "20.1", TAt: "33.6", TAp: "46.3" },
+            { type: "CPGE", nom: "ENS Rennes D1", majeur: "C", mineur: "E", met: "Prépa droit-économie, vers métiers juridiques", nbetab: "19", partPb: "94.7", TAt: "36.4", TAg: "99.1", TAt: "0.9", TAp: "0" },
+            { type: "BTS", nom: "Communication", majeur: "C", mineur: "A", met: "Chargé de com, community manager", nbetab: "89", partPb: "51.7", TAt: "42.2", TAg: "44.9", TAt: "38.6", TAp: "16.4" },
+            { type: "BTS", nom: "Maintenance des véhicules option voitures particulières", majeur: "R", mineur: "C", met: "Technicien auto, mécanicien", nbetab: "45", partPb: "84.4", TAt: "51.3", TAg: "14", TAt: "28.6", TAp: "57.6" },
+            { type: "BTS", nom: "Fluide, énergie, domotique - option C domotique et bâtiment communicants", majeur: "R", mineur: "I", met: "Domoticien, technicien bâtiment connecté", nbetab: "45", partPb: "73.3", TAt: "78.3", TAg: "8.3", TAt: "30.1", TAp: "61.8" },
+            { type: "BTS", nom: "Tourisme", majeur: "E", mineur: "S", met: "Agent de voyage, conseiller touristique", nbetab: "117", partPb: "59.8", TAt: "54.2", TAg: "47.8", TAt: "30.1", TAp: "21.2" },
+            { type: "Autre formation", nom: "Technicien(ne) ascensoriste (service et modernisation)", majeur: "R", mineur: "C", met: "Technicien ascenseurs, maintenance", nbetab: "11", partPb: "100", TAt: "73.2", TAg: "0", TAt: "1.3", TAp: "98.7" },
+            { type: "Licence", nom: "Chimie", majeur: "I", mineur: "R", met: "Chimiste, technicien labo", nbetab: "48", partPb: "100", TAt: "82.1", TAg: "92.4", TAt: "7.1", TAp: "0.6" },
+            { type: "Autre formation", nom: "Maquettes et prototypes", majeur: "A", mineur: "R", met: "Maquettiste, designer produit", nbetab: "3", partPb: "100", TAt: "77.7", TAg: "33.3", TAt: "33", TAp: "34" },
+            { type: "BTS", nom: "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) aliments et processus technologiques", majeur: "I", mineur: "R", met: "Technicien agroalimentaire, qualité", nbetab: "32", partPb: "81.3", TAt: "91.8", TAg: "32.5", TAt: "42.6", TAp: "25" },
+            { type: "IFSI", nom: "DTS Imagerie médicale et radiologie thérapeutique", majeur: "I", mineur: "S", met: "Manipulateur radio, technicien imagerie", nbetab: "32", partPb: "68.8", TAt: "30", TAg: "59.8", TAt: "40", TAp: "0.2" },
+            { type: "Licence", nom: "Sciences pour l'ingénieur", majeur: "I", mineur: "R", met: "Ingénieur généraliste, technicien", nbetab: "38", partPb: "100", TAt: "80.3", TAg: "87.8", TAt: "10.6", TAp: "1.5" },
+            { type: "Licence", nom: "Electronique, énergie électrique, automatique", majeur: "R", mineur: "I", met: "Ingénieur électrotechnique, automaticien", nbetab: "5", partPb: "100", TAt: "96", TAg: "76.4", TAt: "17.8", TAp: "6" },
+            { type: "BTS", nom: "Prothésiste dentaire", majeur: "R", mineur: "A", met: "Prothésiste, technicien dentaire", nbetab: "7", partPb: "100", TAt: "14.9", TAg: "20.4", TAt: "11.1", TAp: "68.6" },
+            { type: "Autre formation", nom: "Sciences et Techniques des Activités Physiques et Sportives", majeur: "S", mineur: "R", met: "Coach, éducateur sportif", nbetab: "1", partPb: "100", TAt: "13", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Gestion", majeur: "C", mineur: "E", met: "Gestionnaire, analyste, responsable admin", nbetab: "43", partPb: "74.4", TAt: "61.7", TAg: "85.7", TAt: "12.2", TAp: "2" },
+            { type: "Licence", nom: "Humanités", majeur: "A", mineur: "C", met: "Enseignant, médiateur culturel, chercheur", nbetab: "32", partPb: "78.1", TAt: "82", TAg: "91.3", TAt: "5.9", TAp: "2.9" },
+            { type: "Licence", nom: "Mathématiques et informatique appliquées aux sciences humaines et sociales", majeur: "I", mineur: "C", met: "Data analyst, statisticien, chercheur SHS", nbetab: "33", partPb: "93.9", TAt: "77.6", TAg: "94", TAt: "4.6", TAp: "1.4" },
+            { type: "BTS", nom: "Diététique", majeur: "S", mineur: "I", met: "Diététicien, conseiller nutrition", nbetab: "36", partPb: "52.8", TAt: "52.4", TAg: "54.8", TAt: "37.7", TAp: "7.5" },
+            { type: "Autre formation", nom: "Sciences de la terre", majeur: "R", mineur: "I", met: "Géologue, hydrologue, cartographe", nbetab: "7", partPb: "100", TAt: "43.9", TAg: "99.4", TAt: "0.6", TAp: "0" },
+            { type: "BTS", nom: "Métiers de la coiffure", majeur: "A", mineur: "S", met: "Coiffeur, visagiste, responsable salon", nbetab: "7", partPb: "57.1", TAt: "61.7", TAg: "24.7", TAt: "22.3", TAp: "53.3" },
+            { type: "BUT", nom: "Carrières sociales Parcours animation sociale et socioculturelle", majeur: "S", mineur: "E", met: "Animateur socioculturel, coordinateur social", nbetab: "18", partPb: "100", TAt: "46.7", TAg: "44.7", TAt: "48.8", TAp: "6.6" },
+            { type: "BTS", nom: "Métiers de l'audio-visuel opt : métiers de l'image", majeur: "A", mineur: "R", met: "Cadreur, monteur image, technicien vidéo", nbetab: "19", partPb: "73.7", TAt: "17.9", TAg: "65.6", TAt: "12.4", TAp: "21.8" },
+            { type: "Autre formation", nom: "Chimie", majeur: "I", mineur: "R", met: "Chimiste, technicien de laboratoire", nbetab: "5", partPb: "100", TAt: "60.6", TAg: "99.4", TAt: "0.6", TAp: "0" },
+            { type: "BTS", nom: "Etude et réalisation d'agencement", majeur: "R", mineur: "C", met: "Agenceur, dessinateur technique", nbetab: "28", partPb: "78.6", TAt: "20.6", TAg: "22.1", TAt: "32.9", TAp: "44.8" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Activités physiques pour tous", majeur: "S", mineur: "R", met: "Éducateur sportif, animateur multisport", nbetab: "33", partPb: "78.8", TAt: "6", TAg: "45.8", TAt: "25.5", TAp: "25.5" },
+            { type: "Licence", nom: "Sciences pour la santé", majeur: "I", mineur: "S", met: "Chargé de recherche santé, technicien biomédical", nbetab: "16", partPb: "93.8", TAt: "59.1", TAg: "93.7", TAt: "5.5", TAp: "0.6" },
+            { type: "Autre formation", nom: "Graphisme", majeur: "A", mineur: "C", met: "Graphiste, maquettiste, designer visuel", nbetab: "73", partPb: "65.8", TAt: "27", TAg: "45.8", TAt: "45.4", TAp: "8.7" },
+            { type: "Autre formation", nom: "Matériaux", majeur: "R", mineur: "I", met: "Ingénieur matériaux, technicien essais", nbetab: "32", partPb: "93.8", TAt: "38.3", TAg: "40.2", TAt: "54.5", TAp: "5.4" },
+            { type: "Autre formation", nom: "Technicien(ne) en tuyauterie", majeur: "R", mineur: "C", met: "Tuyauteur industriel, technicien maintenance", nbetab: "5", partPb: "100", TAt: "83.6", TAg: "7.2", TAt: "1.8", TAp: "90.8" },
+            { type: "Autre formation", nom: "Spectacle", majeur: "A", mineur: "R", met: "Régisseur, technicien plateau, scénographe", nbetab: "19", partPb: "78.9", TAt: "13.9", TAg: "67.4", TAt: "26.1", TAp: "6.3" },
+            { type: "Autre formation", nom: "FCIL classe passerelle BTS", majeur: "Variable", mineur: "Variable", met: "Prépa vers BTS, selon spécialité", nbetab: "24", partPb: "100", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Science politique", majeur: "C", mineur: "S", met: "Analyste politique, chargé de mission publique", nbetab: "30", partPb: "73.3", TAt: "43", TAg: "98.7", TAt: "1", TAp: "0.2" },
+            { type: "BTS", nom: "Europlastics et composites à référentiel commun européen - option Pilotage et Optimisation de la production", majeur: "R", mineur: "C", met: "Technicien plasturgie, chef d’équipe production", nbetab: "14", partPb: "100", TAt: "89.6", TAg: "12.2", TAt: "36.4", TAp: "51.3" },
+            { type: "BUT", nom: "Génie chimique génie des procédés", majeur: "I", mineur: "R", met: "Ingénieur procédés, technicien chimie industrielle", nbetab: "12", partPb: "100", TAt: "80", TAg: "83", TAt: "16.8", TAp: "0" },
+            { type: "EFTS", nom: "D.E Educateur Technique Spécialisé", majeur: "S", mineur: "R", met: "Éducateur technique, formateur en atelier", nbetab: "19", partPb: "0", TAt: "42.4", TAg: "30.1", TAt: "26.8", TAp: "27.4" },
+            { type: "EFTS", nom: "D.E Educateur de Jeunes Enfants", majeur: "S", mineur: "C", met: "Éducateur petite enfance, animateur crèche", nbetab: "60", partPb: "0", TAt: "41.2", TAg: "48.3", TAt: "32.5", TAp: "19.3" },
+            { type: "BTS", nom: "Métiers de la chimie", majeur: "I", mineur: "R", met: "Technicien chimiste, opérateur de production chimique", nbetab: "29", partPb: "72.4", TAt: "77", TAg: "49.9", TAt: "45.1", TAp: "5" },
+            { type: "Licence", nom: "Physique, chimie", majeur: "I", mineur: "R", met: "Physicien, chimiste, enseignant scientifique", nbetab: "47", partPb: "95.7", TAt: "87.7", TAg: "94.4", TAt: "4.8", TAp: "0.7" },
+            { type: "IFSI", nom: "D.E Psychomotricien", majeur: "S", mineur: "I", met: "Psychomotricien, thérapeute corporel", nbetab: "21", partPb: "57.1", TAt: "21.3", TAg: "85", TAt: "13.6", TAp: "1.2" },
+            { type: "Licence_Las", nom: "Langues étrangères appliquées", majeur: "C", mineur: "S", met: "Traducteur, chargé de relations internationales", nbetab: "13", partPb: "84.6", TAt: "74.8", TAg: "87.5", TAt: "9", TAp: "3.7" },
+            { type: "Autre formation", nom: "Formation des écoles supérieure d'art Bac + 3", majeur: "A", mineur: "C", met: "Designer, artiste plasticien, illustrateur", nbetab: "19", partPb: "10.5", TAt: "56.4", TAg: "83", TAt: "11.8", TAp: "5.2" },
+            { type: "Licence", nom: "Sciences du langage", majeur: "C", mineur: "A", met: "Orthophoniste, linguiste, médiateur culturel", nbetab: "50", partPb: "100", TAt: "89.4", TAg: "84.3", TAt: "11", TAp: "4.8" },
+            { type: "Licence_Las", nom: "Mathématiques", majeur: "I", mineur: "C", met: "Statisticien, data analyst, enseignant", nbetab: "35", partPb: "100", TAt: "75.7", TAg: "97.9", TAt: "1.7", TAp: "0.3" },
+            { type: "Licence_Las", nom: "Physique", majeur: "I", mineur: "R", met: "Physicien, ingénieur, chercheur", nbetab: "15", partPb: "100", TAt: "76", TAg: "97", TAt: "2.5", TAp: "0.5" },
+            { type: "IFSI", nom: "Certificat de capacité d'Orthophoniste", majeur: "S", mineur: "C", met: "Orthophoniste, thérapeute du langage", nbetab: "22", partPb: "100", TAt: "11.2", TAg: "97.8", TAt: "2.2", TAp: "0" },
+            { type: "Autre formation", nom: "Diplôme de Comptabilité et de Gestion", majeur: "C", mineur: "E", met: "Comptable, contrôleur de gestion, auditeur", nbetab: "96", partPb: "70.8", TAt: "56.2", TAg: "69.3", TAt: "30.4", TAp: "0.4" },
+            { type: "Licence", nom: "Sciences biomédicales", majeur: "I", mineur: "S", met: "Technicien biomédical, chercheur en santé", nbetab: "5", partPb: "100", TAt: "14.2", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Développement, animation des territoires ruraux", majeur: "S", mineur: "R", met: "Animateur rural, chargé de développement local", nbetab: "40", partPb: "45", TAt: "85.7", TAg: "20.4", TAt: "27.2", TAp: "47.5" },
+            { type: "Licence", nom: "Pluridisciplinaire", majeur: "Variable", mineur: "Variable", met: "Selon parcours : enseignant, médiateur, analyste", nbetab: "7", partPb: "28.6", TAt: "43.4", TAg: "63.6", TAt: "7", TAp: "0.7" },
+            { type: "BUT", nom: "Science des données", majeur: "I", mineur: "C", met: "Data scientist, analyste statistique", nbetab: "15", partPb: "100", TAt: "62", TAg: "83.3", TAt: "16.1", TAp: "0.7" },
+            { type: "Licence_Las", nom: "Langues, littératures et civilisations étrangères et régionales", majeur: "C", mineur: "A", met: "Enseignant, traducteur, médiateur culturel", nbetab: "42", partPb: "95.2", TAt: "66.2", TAg: "87.2", TAt: "7.2", TAp: "5.5" },
+            { type: "BTS", nom: "Bâtiment", majeur: "R", mineur: "C", met: "Conducteur de travaux, chef de chantier", nbetab: "52", partPb: "90.4", TAt: "55.3", TAg: "21.8", TAt: "46.8", TAp: "31.4" },
+            { type: "Autre formation", nom: "Sciences pour l'ingénieur", majeur: "I", mineur: "R", met: "Ingénieur généraliste, technicien R&D", nbetab: "8", partPb: "100", TAt: "37.9", TAg: "98.4", TAt: "1.5", TAp: "0.1" },
+            { type: "Licence_Las", nom: "Informatique", majeur: "I", mineur: "C", met: "Développeur, ingénieur logiciel", nbetab: "16", partPb: "100", TAt: "66.4", TAg: "93.3", TAt: "5.2", TAp: "1.4" },
+            { type: "CPGE", nom: "ECG - Mathématiques approfondies + HGG", majeur: "C", mineur: "E", met: "Analyste financier, consultant en stratégie", nbetab: "69", partPb: "78.3", TAt: "60", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "CPGE", nom: "ECG - Mathématiques appliquées + HGG", majeur: "C", mineur: "E", met: "Data analyst, gestionnaire, économiste", nbetab: "62", partPb: "77.4", TAt: "64.1", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences de la vie et de la terre", majeur: "I", mineur: "R", met: "Biologiste, géologue, enseignant SVT", nbetab: "17", partPb: "94.1", TAt: "54.5", TAg: "96.6", TAt: "2.8", TAp: "0.6" },
+            { type: "Licence_Las", nom: "Sciences de la vie", majeur: "I", mineur: "R", met: "Biologiste, technicien bio, chercheur", nbetab: "43", partPb: "95.3", TAt: "45.1", TAg: "97.5", TAt: "2.3", TAp: "0.2" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Activités aquatiques et de la natation", majeur: "S", mineur: "R", met: "Maître-nageur, éducateur aquatique", nbetab: "26", partPb: "84.6", TAt: "12.8", TAg: "59.9", TAt: "19", TAp: "13.4" },
+            { type: "CPGE", nom: "MP2I", majeur: "I", mineur: "C", met: "Prépa ingénieur, vers informatique/mathématiques", nbetab: "40", partPb: "90", TAt: "40.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Diplôme d'Université - PAREO", majeur: "Variable", mineur: "Variable", met: "Orientation vers licence, selon spécialité", nbetab: "22", partPb: "86.4", TAt: "64.1", TAg: "52.5", TAt: "27.5", TAp: "20" },
+            { type: "Autre formation", nom: "Année préparatoire", majeur: "Variable", mineur: "Variable", met: "Prépa vers licence ou BTS, selon domaine", nbetab: "27", partPb: "51.9", TAt: "66.1", TAg: "76.2", TAt: "17.4", TAp: "6.4" },
+            { type: "Licence_Las", nom: "Sciences et Techniques des Activités Physiques et Sportives", majeur: "S", mineur: "R", met: "Coach sportif, éducateur, préparateur physique", nbetab: "40", partPb: "100", TAt: "20.2", TAg: "96.2", TAt: "3", TAp: "0.9" },
+            { type: "Licence", nom: "Informatique", majeur: "I", mineur: "C", met: "Développeur, ingénieur logiciel, data scientist", nbetab: "63", partPb: "96.8", TAt: "68.4", TAg: "89.8", TAt: "7.3", TAp: "1.3" },
+            { type: "BUT", nom: "Réseaux et télécommunications", majeur: "I", mineur: "R", met: "Technicien réseau, ingénieur télécom", nbetab: "30", partPb: "100", TAt: "53.2", TAg: "59.6", TAt: "36.2", TAp: "4.2" },
+            { type: "BTS", nom: "Technico-commercial - Spécialité biens et services pour l'agriculture", majeur: "E", mineur: "R", met: "Conseiller agricole, technico-commercial", nbetab: "6", partPb: "33.3", TAt: "95.7", TAg: "23.3", TAt: "46.8", TAp: "30" },
+            { type: "BUT", nom: "Packaging, emballage et conditionnement", majeur: "R", mineur: "C", met: "Technicien packaging, ingénieur qualité", nbetab: "6", partPb: "100", TAt: "71.3", TAg: "57", TAt: "41.8", TAp: "1.3" },
+            { type: "BTS", nom: "Technico-commercial - Spécialité produit de la filière bois", majeur: "E", mineur: "R", met: "Commercial bois, conseiller technique", nbetab: "4", partPb: "50", TAt: "95.5", TAg: "12.8", TAt: "30.8", TAp: "56.5" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences de la vie", majeur: "I", mineur: "R", met: "Biologiste, technicien bio, enseignant SVT", nbetab: "1", partPb: "100", TAt: "73", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Physique, chimie", majeur: "I", mineur: "R", met: "Physicien, chimiste, enseignant", nbetab: "22", partPb: "100", TAt: "82.4", TAg: "94.7", TAt: "4.4", TAp: "0.9" },
+            { type: "IFSI", nom: "Certificat de capacité d'Orthoptiste", majeur: "S", mineur: "I", met: "Orthoptiste, spécialiste rééducation visuelle", nbetab: "20", partPb: "100", TAt: "16.4", TAg: "89.4", TAt: "8.4", TAp: "2.4" },
+            { type: "Licence", nom: "Sciences de la vie et de la terre", majeur: "I", mineur: "R", met: "Biologiste, géologue, enseignant SVT", nbetab: "29", partPb: "93.1", TAt: "80.7", TAg: "93.5", TAt: "5.6", TAp: "0.8" },
+            { type: "Licence", nom: "Sciences de l'éducation et de la formation", majeur: "S", mineur: "C", met: "Enseignant, formateur, conseiller pédagogique", nbetab: "67", partPb: "76.1", TAt: "59.3", TAg: "81", TAt: "13.7", TAp: "5.4" },
+            { type: "Autre formation", nom: "Diplôme d'Etablissement", majeur: "Variable", mineur: "Variable", met: "Selon spécialité : gestion, art, santé…", nbetab: "20", partPb: "50", TAt: "47.6", TAg: "73.1", TAt: "12.5", TAp: "4.5" },
+            { type: "Licence", nom: "Musicologie", majeur: "A", mineur: "C", met: "Musicologue, enseignant musique, compositeur", nbetab: "36", partPb: "97.2", TAt: "72.2", TAg: "83", TAt: "13.3", TAp: "3.7" },
+            { type: "Autre formation", nom: "Sciences Po / Instituts d'études politiques - Sciences Humaines et Sociales - Grade Licence", majeur: "C", mineur: "S", met: "Chargé d’études, analyste politique, journaliste", nbetab: "12", partPb: "100", TAt: "3.7", TAg: "66.7", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Gestion forestière", majeur: "R", mineur: "S", met: "Technicien forestier, gestionnaire d’espaces naturels", nbetab: "20", partPb: "60", TAt: "76.2", TAg: "39.3", TAt: "33.4", TAp: "27.4" },
+            { type: "BTS", nom: "Collaborateur juriste notarial", majeur: "C", mineur: "E", met: "Clerc de notaire, assistant juridique", nbetab: "56", partPb: "58.9", TAt: "47.6", TAg: "54.8", TAt: "37.8", TAp: "7.4" },
+            { type: "Licence", nom: "Sciences et société", majeur: "I", mineur: "S", met: "Sociologue, chargé d’études sociales", nbetab: "3", partPb: "100", TAt: "61.7", TAg: "95", TAt: "4", TAp: "1" },
+            { type: "IFSI", nom: "D.E manipulateur/trice en électroradiologie médicale", majeur: "I", mineur: "S", met: "Manipulateur radio, technicien imagerie", nbetab: "23", partPb: "100", TAt: "26.6", TAg: "75.3", TAt: "24.1", TAp: "0.6" },
+            { type: "BTS", nom: "Opticien-Lunetier", majeur: "I", mineur: "S", met: "Opticien, conseiller santé visuelle", nbetab: "30", partPb: "43.3", TAt: "55.5", TAg: "58.1", TAt: "23.5", TAp: "18.3" },
+            { type: "BTS", nom: "génie des équipements agricoles", majeur: "R", mineur: "C", met: "Technicien agricole, mécanicien agroéquipement", nbetab: "13", partPb: "61.5", TAt: "78.8", TAg: "18.3", TAt: "36.5", TAp: "45.2" },
+            { type: "BUT", nom: "Métiers du multimédia et de l'internet", majeur: "I", mineur: "A", met: "Webdesigner, développeur multimédia", nbetab: "33", partPb: "100", TAt: "30.3", TAg: "51.7", TAt: "47.3", TAp: "1" },
+            { type: "BUT", nom: "Génie biologique Parcours diététique et nutrition", majeur: "I", mineur: "S", met: "Diététicien, technicien bio", nbetab: "11", partPb: "100", TAt: "33.4", TAg: "67.3", TAt: "32.7", TAp: "0" },
+            { type: "BTS", nom: "Traitement des matériaux", majeur: "R", mineur: "C", met: "Technicien matériaux, opérateur industriel", nbetab: "9", partPb: "100", TAt: "79.7", TAg: "33.1", TAt: "55.6", TAp: "11.4" },
+            { type: "BTS", nom: "Technico-commercial - Spécialité vins, bières et spiritueux", majeur: "E", mineur: "R", met: "Commercial vins, conseiller œnologie", nbetab: "14", partPb: "57.1", TAt: "87.4", TAg: "34.4", TAt: "35.4", TAp: "30.2" },
+            { type: "Autre formation", nom: "Architecture", majeur: "R", mineur: "A", met: "Architecte, dessinateur bâtiment", nbetab: "23", partPb: "95.7", TAt: "11.3", TAg: "85.8", TAt: "10.7", TAp: "3.5" },
+            { type: "BTS", nom: "Techniques et services en matériels agricoles", majeur: "R", mineur: "C", met: "Technicien SAV agricole, mécanicien", nbetab: "9", partPb: "88.9", TAt: "75.8", TAg: "7.7", TAt: "26.3", TAp: "66.1" },
+            { type: "BUT", nom: "Génie biologique Parcours agronomie", majeur: "R", mineur: "I", met: "Agronome, technicien cultures", nbetab: "13", partPb: "100", TAt: "69.4", TAg: "79.5", TAt: "20.5", TAp: "0" },
+            { type: "BUT", nom: "Génie biologique parcours sciences de l'environnement et écotechnologies", majeur: "I", mineur: "R", met: "Chargé mission environnement, écotechnicien", nbetab: "17", partPb: "100", TAt: "58.9", TAg: "76.9", TAt: "22.9", TAp: "0.1" },
+            { type: "BTS", nom: "Fonderie", majeur: "R", mineur: "C", met: "Fondeur, technicien métallurgie", nbetab: "6", partPb: "100", TAt: "96.7", TAg: "30.7", TAt: "39.5", TAp: "29.8" },
+            { type: "Licence", nom: "Etudes théâtrales", majeur: "A", mineur: "C", met: "Comédien, dramaturge, régisseur", nbetab: "7", partPb: "100", TAt: "46.7", TAg: "91.3", TAt: "5.7", TAp: "2.7" },
+            { type: "BUT", nom: "Hygiène Sécurité Environnement", majeur: "C", mineur: "I", met: "Animateur HSE, technicien sécurité", nbetab: "18", partPb: "100", TAt: "66.3", TAg: "65.3", TAt: "32.7", TAp: "2.1" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Scientifique", majeur: "I", mineur: "R", met: "Prépa vers ingénierie ou santé", nbetab: "11", partPb: "81.8", TAt: "48.1", TAg: "79.9", TAt: "10", TAp: "10" },
+            { type: "Licence", nom: "Droit français - Droit étranger", majeur: "C", mineur: "E", met: "Juriste international, avocat", nbetab: "6", partPb: "100", TAt: "40.3", TAg: "98.3", TAt: "1.7", TAp: "0" },
+            { type: "BUT", nom: "Génie industriel et maintenance", majeur: "R", mineur: "C", met: "Technicien maintenance, ingénieur production", nbetab: "25", partPb: "100", TAt: "70.4", TAg: "55.8", TAt: "42.6", TAp: "1.6" },
+            { type: "Licence", nom: "Administration et Echanges internationaux", majeur: "C", mineur: "E", met: "Chargé commerce international, gestionnaire", nbetab: "8", partPb: "100", TAt: "40.8", TAg: "91.1", TAt: "8", TAp: "0.6" },
+            { type: "BTS", nom: "Photographie", majeur: "A", mineur: "R", met: "Photographe, technicien labo photo", nbetab: "10", partPb: "50", TAt: "26.8", TAg: "57.3", TAt: "24.4", TAp: "18.4" },
+            { type: "BTS", nom: "Etudes de réalisation d'un projet de communication - 1ère année commune", majeur: "C", mineur: "A", met: "Chargé de com, assistant production", nbetab: "17", partPb: "100", TAt: "40.3", TAg: "24.7", TAt: "22.8", TAp: "52.6" },
+            { type: "BTS", nom: "Métiers de l'esthétique-cosmétique-parfumerie", majeur: "R", mineur: "S", met: "Esthéticienne, socio-esthéticienne", nbetab: "47", partPb: "53.2", TAt: "64.4", TAg: "28.2", TAt: "30.7", TAp: "41.1" },
+            { type: "Autre formation", nom: "Aéronautique option avions à moteurs à turbines", majeur: "R", mineur: "I", met: "Mécanicien aéronautique, technicien propulsion", nbetab: "8", partPb: "100", TAt: "33", TAg: "0", TAt: "0", TAp: "100" },
+            { type: "Autre formation", nom: "Sciences de la vie", majeur: "I", mineur: "R", met: "Biologiste, technicien bio", nbetab: "6", partPb: "100", TAt: "39", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences pour la santé", majeur: "I", mineur: "S", met: "Technicien biomédical, chercheur santé", nbetab: "39", partPb: "94.9", TAt: "56.3", TAg: "96.3", TAt: "3.2", TAp: "0.4" },
+            { type: "Autre formation", nom: "Accueil-réception", majeur: "S", mineur: "C", met: "Réceptionniste, agent d’accueil", nbetab: "22", partPb: "77.3", TAt: "67.5", TAg: "12.6", TAt: "15.5", TAp: "67.6" },
+            { type: "Autre formation", nom: "Formation Bac+6", majeur: "Variable", mineur: "Variable", met: "Selon spécialité (ingénieur, juriste, etc.)", nbetab: "6", partPb: "66.7", TAt: "10.5", TAg: "83.3", TAt: "16.7", TAp: "0" },
+            { type: "Autre formation", nom: "Mode", majeur: "A", mineur: "R", met: "Styliste, modéliste, couturier", nbetab: "19", partPb: "84.2", TAt: "14.3", TAg: "37.5", TAt: "56.7", TAp: "5.7" },
+            { type: "Licence_Las", nom: "Mathématiques et informatique appliquées aux sciences humaines et sociales", majeur: "I", mineur: "C", met: "Data analyst, statisticien SHS", nbetab: "7", partPb: "100", TAt: "65.4", TAg: "96.7", TAt: "2.6", TAp: "0.9" },
+            { type: "BUT", nom: "Information communication Parcours métiers du livre et du patrimoine", majeur: "C", mineur: "A", met: "Bibliothécaire, médiateur culturel", nbetab: "11", partPb: "100", TAt: "18", TAg: "76.5", TAt: "22.1", TAp: "1.5" },
+            { type: "BUT", nom: "Information communication Parcours communication des organisations", majeur: "C", mineur: "E", met: "Chargé de com, community manager", nbetab: "17", partPb: "100", TAt: "18.8", TAg: "50.8", TAt: "48.8", TAp: "0.2" },
+            { type: "BUT", nom: "Gestion administrative et commerciale des organisations", majeur: "C", mineur: "E", met: "Assistant gestion, responsable PME", nbetab: "21", partPb: "100", TAt: "33.8", TAg: "54.4", TAt: "45", TAp: "0.6" },
+            { type: "Autre formation", nom: "Art de la dorure à chaud", majeur: "A", mineur: "R", met: "Artisan doreur, relieur d’art", nbetab: "1", partPb: "100", TAt: "17", TAg: "60", TAt: "0", TAp: "40" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Cinéma audiovisuel", majeur: "A", mineur: "C", met: "Réalisateur, monteur, technicien plateau", nbetab: "2", partPb: "100", TAt: "12.5", TAg: "90.5", TAt: "5.5", TAp: "4" },
+            { type: "Licence", nom: "Physique", majeur: "I", mineur: "R", met: "Physicien, ingénieur, enseignant", nbetab: "43", partPb: "100", TAt: "76.8", TAg: "97", TAt: "2.5", TAp: "0.5" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Générale", majeur: "Variable", mineur: "Variable", met: "Prépa vers licence ou BTS", nbetab: "3", partPb: "66.7", TAt: "77.3", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Sommellerie", majeur: "R", mineur: "S", met: "Sommelier, conseiller vins", nbetab: "27", partPb: "81.5", TAt: "83.9", TAg: "20.9", TAt: "21.7", TAp: "57.4" },
+            { type: "BTS", nom: "Assurance", majeur: "C", mineur: "E", met: "Conseiller assurance, gestionnaire sinistres", nbetab: "49", partPb: "71.4", TAt: "62.2", TAg: "31.3", TAt: "44.9", TAp: "23.8" },
+            { type: "Autre formation", nom: "Spécialité Animation socio-éducative ou culturelle - Mention développement de projets, territoires et réseaux", majeur: "S", mineur: "E", met: "Coordinateur social, animateur territoire", nbetab: "1", partPb: "0", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Animation socio-éducative ou culturelle - Mention Animation sociale", majeur: "S", mineur: "C", met: "Animateur social, éducateur spécialisé", nbetab: "1", partPb: "0", TAt: "20", TAg: "25", TAt: "50", TAp: "25" },
+            { type: "Autre formation", nom: "Services numériques aux organisations", majeur: "I", mineur: "C", met: "Technicien SI, développeur web", nbetab: "31", partPb: "80.6", TAt: "85.8", TAg: "17", TAt: "21.5", TAp: "58.2" },
+            { type: "BTS", nom: "Métiers des Services à l'environnement", majeur: "R", mineur: "C", met: "Agent propreté, technicien déchets", nbetab: "20", partPb: "95", TAt: "82.3", TAg: "36.8", TAt: "38.8", TAp: "24.3" },
+            { type: "BTS", nom: "Bioqualité", majeur: "I", mineur: "R", met: "Technicien qualité agroalimentaire", nbetab: "19", partPb: "89.5", TAt: "77.7", TAg: "33.6", TAt: "53.3", TAp: "13.1" },
+            { type: "Autre formation", nom: "Organisateur de réception", majeur: "E", mineur: "C", met: "Wedding planner, chef événementiel", nbetab: "9", partPb: "77.8", TAt: "72.6", TAg: "9.3", TAt: "22.6", TAp: "68" },
+            { type: "BTS", nom: "Fluide, énergie, domotique - option A génie climatique et fluidique", majeur: "R", mineur: "I", met: "Domoticien, technicien CVC", nbetab: "33", partPb: "87.9", TAt: "63", TAg: "12.5", TAt: "33.5", TAp: "51" },
+            { type: "Licence", nom: "Lettres, langues", majeur: "A", mineur: "C", met: "Enseignant, écrivain, traducteur", nbetab: "4", partPb: "75", TAt: "83.8", TAg: "92.8", TAt: "5.3", TAp: "2.3" },
+            { type: "Autre formation", nom: "Acoustique et Vibrations", majeur: "I", mineur: "R", met: "Acousticien, ingénieur vibrations", nbetab: "1", partPb: "100", TAt: "40", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Pilotage des procédés", majeur: "R", mineur: "C", met: "Conducteur de ligne, technicien procédés", nbetab: "10", partPb: "100", TAt: "72.5", TAg: "19.9", TAt: "44.3", TAp: "36.1" },
+            { type: "Autre formation", nom: "Assistance, conseil, vente à distance", majeur: "S", mineur: "C", met: "Conseiller clientèle, téléconseiller", nbetab: "4", partPb: "100", TAt: "77.5", TAg: "17.3", TAt: "18.3", TAp: "64.8" },
+            { type: "Autre formation", nom: "Diplôme d'Université", majeur: "Variable", mineur: "Variable", met: "Selon domaine (santé, droit, etc.)", nbetab: "21", partPb: "90.5", TAt: "62.8", TAg: "74.5", TAt: "15.3", TAp: "10.4" },
+            { type: "Autre formation", nom: "Événement", majeur: "E", mineur: "C", met: "Chef projet événementiel, régisseur", nbetab: "20", partPb: "60", TAt: "29.7", TAg: "41.8", TAt: "50.4", TAp: "8" },
+            { type: "Licence", nom: "Sciences de la terre", majeur: "R", mineur: "I", met: "Géologue, hydrologue, cartographe", nbetab: "23", partPb: "100", TAt: "87", TAg: "94.3", TAt: "4.6", TAp: "0.9" },
+            { type: "Autre formation", nom: "DSP - Assistance à la conception numérique et à la réalisation d'objets 3D", majeur: "A", mineur: "I", met: "Designer 3D, maquettiste numérique", nbetab: "1", partPb: "100", TAt: "100", TAg: "57", TAt: "26", TAp: "17" },
+            { type: "BTS", nom: "Technico-commercial - Spécialité alimentation et boisson", majeur: "E", mineur: "R", met: "Commercial agroalimentaire, conseiller produits", nbetab: "27", partPb: "33.3", TAt: "90.7", TAg: "11.6", TAt: "37.2", TAp: "47.4" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences et humanités", majeur: "I", mineur: "S", met: "Chercheur SHS, enseignant, analyste", nbetab: "2", partPb: "100", TAt: "90.5", TAg: "99.5", TAt: "0", TAp: "0.5" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences pour l'ingénieur", majeur: "I", mineur: "R", met: "Ingénieur généraliste, technicien R&D", nbetab: "1", partPb: "100", TAt: "74", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Mécanique", majeur: "R", mineur: "I", met: "Ingénieur mécanique, technicien CAO", nbetab: "7", partPb: "100", TAt: "84.9", TAg: "92.3", TAt: "7.4", TAp: "0.1" },
+            { type: "Licence", nom: "Sciences de la transition écologique et sociétale", majeur: "I", mineur: "S", met: "Chargé mission transition, analyste socio-éco", nbetab: "3", partPb: "100", TAt: "93.3", TAg: "86.3", TAt: "12.3", TAp: "1.7" },
+            { type: "BTS", nom: "Architectures en Métal : conception et Réalisation", majeur: "R", mineur: "C", met: "Métallier, dessinateur-projeteur, chef atelier", nbetab: "15", partPb: "86.7", TAt: "72.7", TAg: "19.7", TAt: "45.8", TAp: "34.7" },
+            { type: "BUT", nom: "Qualité, logistique industrielle et organisation", majeur: "C", mineur: "R", met: "Responsable qualité, logisticien", nbetab: "21", partPb: "100", TAt: "73.2", TAg: "58.1", TAt: "38.5", TAp: "3.4" },
+            { type: "BTS", nom: "Biotechnologies", majeur: "I", mineur: "R", met: "Technicien bio, analyste biomédical", nbetab: "24", partPb: "83.3", TAt: "66.8", TAg: "44.5", TAt: "51", TAp: "4.5" },
+            { type: "Autre formation", nom: "Préparation aux concours des écoles de commerce, Parcours Gestion", majeur: "C", mineur: "E", met: "Analyste financier, gestionnaire", nbetab: "1", partPb: "0", TAt: "60", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BUT", nom: "Génie civil - Construction durable", majeur: "R", mineur: "C", met: "Ingénieur BTP, conducteur de travaux", nbetab: "30", partPb: "100", TAt: "44.4", TAg: "59.1", TAt: "37.3", TAp: "3.5" },
+            { type: "Autre formation", nom: "Géographie et aménagement", majeur: "C", mineur: "R", met: "Urbaniste, géographe, chargé d’études", nbetab: "3", partPb: "100", TAt: "52.3", TAg: "98.7", TAt: "1.3", TAp: "0" },
+            { type: "Licence", nom: "Sciences sociales", majeur: "S", mineur: "C", met: "Sociologue, éducateur, chargé d’études", nbetab: "26", partPb: "76.9", TAt: "78.8", TAg: "87.6", TAt: "9.3", TAp: "3" },
+            { type: "Autre formation", nom: "Physique", majeur: "I", mineur: "R", met: "Physicien, ingénieur, enseignant", nbetab: "5", partPb: "100", TAt: "43.4", TAg: "99.8", TAt: "0.2", TAp: "0" },
+            { type: "BTS", nom: "Agronomie et cultures durables", majeur: "R", mineur: "S", met: "Agronome, technicien agricole", nbetab: "30", partPb: "66.7", TAt: "88.4", TAg: "33.5", TAt: "47.5", TAp: "18.9" },
+            { type: "Autre formation", nom: "Aéronautique option hélicoptères à moteurs à turbines", majeur: "R", mineur: "I", met: "Mécanicien aéronautique, technicien propulsion", nbetab: "4", partPb: "100", TAt: "51.3", TAg: "0", TAt: "0", TAp: "100" },
+            { type: "BTS", nom: "Contrôle industriel et régulation automatique", majeur: "R", mineur: "I", met: "Automaticien, technicien régulation", nbetab: "32", partPb: "90.6", TAt: "68.1", TAg: "22.2", TAt: "53.7", TAp: "24.2" },
+            { type: "BUT", nom: "Génie biologique parcours sciences de l'aliment et biotechnologie", majeur: "I", mineur: "R", met: "Technicien agroalimentaire, biochimiste", nbetab: "24", partPb: "100", TAt: "68.5", TAg: "77.9", TAt: "22", TAp: "0" },
+            { type: "CPGE", nom: "Ecole nationale des Chartes", majeur: "C", mineur: "A", met: "Archiviste, conservateur, historien", nbetab: "3", partPb: "100", TAt: "43.3", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Maintenance des véhicules option véhicules de transport routier", majeur: "R", mineur: "C", met: "Technicien poids lourds, mécanicien", nbetab: "13", partPb: "92.3", TAt: "64.2", TAg: "20.2", TAt: "20.9", TAp: "58.9" },
+            { type: "Licence", nom: "Sciences sanitaires et sociales", majeur: "S", mineur: "C", met: "Chargé de mission santé, éducateur", nbetab: "8", partPb: "87.5", TAt: "85.3", TAg: "60.9", TAt: "33.9", TAp: "5.3" },
+            { type: "BTS", nom: "Maintenance des systèmes - option C Systèmes éoliens", majeur: "R", mineur: "C", met: "Technicien éolien, maintenance industrielle", nbetab: "9", partPb: "88.9", TAt: "69.7", TAg: "14.2", TAt: "37.7", TAp: "48.1" },
+            { type: "Autre formation", nom: "Mécatronique navale", majeur: "R", mineur: "I", met: "Technicien naval, électromécanicien", nbetab: "2", partPb: "100", TAt: "83.5", TAg: "20.5", TAt: "7", TAp: "72.5" },
+            { type: "Autre formation", nom: "Patrimoine", majeur: "A", mineur: "C", met: "Médiateur culturel, conservateur", nbetab: "4", partPb: "100", TAt: "10", TAg: "49", TAt: "49.3", TAp: "1.8" },
+            { type: "Autre formation", nom: "Livre", majeur: "A", mineur: "C", met: "Éditeur, bibliothécaire, relieur", nbetab: "4", partPb: "100", TAt: "6.8", TAg: "43.5", TAt: "55", TAp: "1.5" },
+            { type: "Licence_Las", nom: "Philosophie", majeur: "I", mineur: "A", met: "Enseignant, chercheur, médiateur culturel", nbetab: "9", partPb: "100", TAt: "73.1", TAg: "84.6", TAt: "10.8", TAp: "4.8" },
+            { type: "BTS", nom: "Maintenance des systèmes - option B Systèmes énergétiques et fluidiques", majeur: "R", mineur: "C", met: "Technicien CVC, maintenance industrielle", nbetab: "18", partPb: "94.4", TAt: "73.9", TAg: "9.6", TAt: "30.2", TAp: "60.3" },
+            { type: "BTS", nom: "Aquaculture", majeur: "R", mineur: "S", met: "Aquaculteur, technicien élevage", nbetab: "8", partPb: "62.5", TAt: "88", TAg: "36.1", TAt: "27.5", TAp: "36.4" },
+            { type: "BUT", nom: "Information communication Parcours publicité", majeur: "C", mineur: "A", met: "Chargé de pub, créatif, chef de projet", nbetab: "8", partPb: "100", TAt: "17.5", TAg: "52.1", TAt: "46.9", TAp: "1.1" },
+            { type: "Licence_Las", nom: "Histoire", majeur: "C", mineur: "A", met: "Enseignant, archiviste, médiateur", nbetab: "12", partPb: "91.7", TAt: "77.5", TAg: "85.5", TAt: "10.3", TAp: "4.4" },
+            { type: "Licence_Las", nom: "Sciences et Humanités", majeur: "I", mineur: "S", met: "Chercheur SHS, enseignant, analyste", nbetab: "1", partPb: "100", TAt: "30", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Sciences et Humanités", majeur: "I", mineur: "S", met: "Idem, selon parcours", nbetab: "4", partPb: "100", TAt: "63.8", TAg: "95", TAt: "4.8", TAp: "0.3" },
+            { type: "Licence", nom: "Administration publique", majeur: "C", mineur: "E", met: "Attaché territorial, gestionnaire public", nbetab: "5", partPb: "100", TAt: "80", TAg: "81", TAt: "15", TAp: "4" },
+            { type: "Autre formation", nom: "Technicien(ne) en soudage", majeur: "R", mineur: "C", met: "Soudeur industriel, technicien métallurgie", nbetab: "24", partPb: "95.8", TAt: "70.9", TAg: "1.5", TAt: "1.9", TAp: "96.7" },
+            { type: "Autre formation", nom: "FCIL classe passerelle BTS option service", majeur: "S", mineur: "C", met: "Assistant service, animateur, médiateur", nbetab: "9", partPb: "100", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Formation valant grade de licence", majeur: "Variable", mineur: "Variable", met: "Selon spécialité", nbetab: "10", partPb: "100", TAt: "18.7", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "IFSI", nom: "D.E Ergothérapeute", majeur: "S", mineur: "I", met: "Ergothérapeute, rééducateur fonctionnel", nbetab: "28", partPb: "53.6", TAt: "26.3", TAg: "85.1", TAt: "13.7", TAp: "1.2" },
+            { type: "Licence_Las", nom: "Humanités", majeur: "A", mineur: "C", met: "Enseignant, médiateur culturel", nbetab: "1", partPb: "100", TAt: "67", TAg: "85", TAt: "10", TAp: "5" },
+            { type: "Licence_Las", nom: "Sciences sociales", majeur: "S", mineur: "C", met: "Sociologue, éducateur, chargé d’études", nbetab: "2", partPb: "100", TAt: "53.5", TAg: "81.5", TAt: "13.5", TAp: "5" },
+            { type: "IFSI", nom: "D.E Audioprothésiste", majeur: "S", mineur: "I", met: "Audioprothésiste, technicien santé", nbetab: "11", partPb: "100", TAt: "24.6", TAg: "95.6", TAt: "4", TAp: "0.4" },
+            { type: "Autre formation", nom: "Conservation-restauration des biens culturels", majeur: "A", mineur: "R", met: "Restaurateur d’art, conservateur", nbetab: "9", partPb: "100", TAt: "22.2", TAg: "90.8", TAt: "5.6", TAp: "3.7" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Activités de la forme", majeur: "S", mineur: "R", met: "Coach sportif, éducateur forme", nbetab: "25", partPb: "60", TAt: "3.1", TAg: "46.3", TAt: "16.6", TAp: "9.1" },
+            { type: "Autre formation", nom: "Ornement", majeur: "A", mineur: "R", met: "Artisan décorateur, doreur", nbetab: "5", partPb: "100", TAt: "5.8", TAg: "45.2", TAt: "54.8", TAp: "0" },
+            { type: "BUT", nom: "Information communication Parcours journalisme", majeur: "C", mineur: "A", met: "Journaliste, rédacteur, reporter", nbetab: "3", partPb: "100", TAt: "4.7", TAg: "62", TAt: "38", TAp: "0" },
+            { type: "Autre formation", nom: "Paysage", majeur: "R", mineur: "A", met: "Paysagiste, concepteur d’espaces verts", nbetab: "4", partPb: "100", TAt: "22", TAg: "84.3", TAt: "13.5", TAp: "2.8" },
+            { type: "IFSI", nom: "D.E Pédicure-Podologue", majeur: "S", mineur: "I", met: "Podologue, professionnel santé", nbetab: "14", partPb: "21.4", TAt: "59.1", TAg: "82.4", TAt: "15.5", TAp: "2.1" },
+            { type: "Autre formation", nom: "Sciences de la Vie et de la Terre : préparation aux concours B Agro et Véto (Sites Saint Charles)", majeur: "I", mineur: "R", met: "Vétérinaire, ingénieur agro, biologiste", nbetab: "1", partPb: "100", TAt: "29", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Tourisme", majeur: "E", mineur: "S", met: "Agent de voyage, chargé de projet touristique", nbetab: "2", partPb: "100", TAt: "61.5", TAg: "83", TAt: "10.5", TAp: "6.5" },
+            { type: "BUT", nom: "Chimie", majeur: "I", mineur: "R", met: "Chimiste, technicien labo", nbetab: "19", partPb: "100", TAt: "76.5", TAg: "83.6", TAt: "16.4", TAp: "0" },
+            { type: "BTS", nom: "Métiers de la mode-chaussure et maroquinerie", majeur: "A", mineur: "R", met: "Modéliste, maroquinier, styliste", nbetab: "7", partPb: "100", TAt: "52", TAg: "14.4", TAt: "18.7", TAp: "66.7" },
+            { type: "Licence", nom: "Sciences et technologies", majeur: "I", mineur: "R", met: "Ingénieur, technicien, enseignant", nbetab: "22", partPb: "95.5", TAt: "62.8", TAg: "88.8", TAt: "8.9", TAp: "2.3" },
+            { type: "Licence", nom: "Tourisme", majeur: "E", mineur: "S", met: "Responsable tourisme, médiateur culturel", nbetab: "5", partPb: "60", TAt: "76", TAg: "82.6", TAt: "12.2", TAp: "5.2" },
+            { type: "BTS", nom: "Europlastics et composites à référentiel commun européen - option Conception d'Outillage", majeur: "R", mineur: "C", met: "Technicien plasturgie, concepteur moules", nbetab: "11", partPb: "100", TAt: "93.3", TAg: "7.1", TAt: "48", TAp: "44.8" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences et société", majeur: "I", mineur: "S", met: "Chercheur SHS, analyste, enseignant", nbetab: "7", partPb: "100", TAt: "46", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences pour l'ingénieur", majeur: "I", mineur: "R", met: "Ingénieur généraliste, technicien R&D", nbetab: "5", partPb: "100", TAt: "73.4", TAg: "94.4", TAt: "5.6", TAp: "0.2" },
+            { type: "Licence_Las", nom: "Economie", majeur: "C", mineur: "E", met: "Analyste économique, gestionnaire", nbetab: "7", partPb: "100", TAt: "59.1", TAg: "95", TAt: "3.6", TAp: "1.4" },
+            { type: "Licence", nom: "Sciences de la Terre et Sciences Physiques", majeur: "I", mineur: "R", met: "Géologue, physicien, enseignant", nbetab: "1", partPb: "100", TAt: "58", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BUT", nom: "Carrières sociales parcours coordination et gestion des établissements et services sanitaires et sociaux", majeur: "S", mineur: "C", met: "Responsable établissement, coordinateur social", nbetab: "5", partPb: "100", TAt: "69.8", TAg: "43.6", TAt: "47.8", TAp: "8.6" },
+            { type: "BTS", nom: "Métiers de l'audio-visuel opt : techn. d'ingeniérie et exploit. équipements", majeur: "R", mineur: "A", met: "Technicien audiovisuel, ingénieur son/image", nbetab: "16", partPb: "93.8", TAt: "24.4", TAg: "54.3", TAt: "18.9", TAp: "26.9" },
+            { type: "BTS", nom: "Fluide, énergie, domotique - option B froid et conditionnement d'air", majeur: "R", mineur: "C", met: "Frigoriste, technicien CVC", nbetab: "31", partPb: "67.7", TAt: "69.2", TAg: "8.5", TAt: "26.8", TAp: "64.7" },
+            { type: "Autre formation", nom: "Maintenance des installations oléohydrauliques et pneumatiques", majeur: "R", mineur: "C", met: "Technicien hydraulique, maintenance industrielle", nbetab: "6", partPb: "100", TAt: "92.8", TAg: "8", TAt: "5.2", TAp: "86.7" },
+            { type: "Licence", nom: "Économie, Science politique", majeur: "C", mineur: "E", met: "Analyste politique, économiste, chargé d’études", nbetab: "1", partPb: "100", TAt: "13", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Techn. en énergies renouvelables opt. b énergie thermique", majeur: "R", mineur: "C", met: "Technicien thermique, installateur solaire", nbetab: "11", partPb: "90.9", TAt: "85.1", TAg: "7.5", TAt: "5.6", TAp: "77.8" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Sciences économiques", majeur: "C", mineur: "E", met: "Prépa vers économie, gestion, commerce", nbetab: "2", partPb: "100", TAt: "46.5", TAg: "92", TAt: "8", TAp: "0" },
+            { type: "BTS", nom: "Métiers du géomètre-topographe et de la modélisation numérique", majeur: "R", mineur: "C", met: "Géomètre, technicien SIG, topographe", nbetab: "18", partPb: "88.9", TAt: "56.4", TAg: "38.8", TAt: "30.7", TAp: "30.6" },
+            { type: "Licence", nom: "Cinéma", majeur: "A", mineur: "C", met: "Réalisateur, scénariste, monteur", nbetab: "3", partPb: "100", TAt: "19.7", TAg: "94.3", TAt: "3.7", TAp: "2.3" },
+            { type: "Autre formation", nom: "Paysagiste concepteur", majeur: "R", mineur: "A", met: "Paysagiste DPLG, urbaniste, concepteur environnement", nbetab: "1", partPb: "0", TAt: "72", TAg: "80", TAt: "16", TAp: "4" },
+            { type: "Licence", nom: "Théologie", majeur: "I", mineur: "A", met: "Enseignant, chercheur en religion", nbetab: "5", partPb: "60", TAt: "99.2", TAg: "73.8", TAt: "15.2", TAp: "10.6" },
+            { type: "Autre formation", nom: "Archéologie, histoire de l'art, anthropologie", majeur: "A", mineur: "C", met: "Archéologue, historien d’art, anthropologue", nbetab: "1", partPb: "100", TAt: "25", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "Autre formation", nom: "Vendeur-conseil en produits techniques pour l'habitat", majeur: "E", mineur: "R", met: "Conseiller habitat, technico-commercial", nbetab: "5", partPb: "100", TAt: "90.2", TAg: "7.6", TAt: "7.2", TAp: "85.2" },
+            { type: "Autre formation", nom: "Spécialité Animateur - Mention Loisirs tous publics", majeur: "S", mineur: "E", met: "Animateur socioculturel, coordinateur loisirs", nbetab: "4", partPb: "0", TAt: "14.8", TAg: "59.8", TAt: "19.3", TAp: "21" },
+            { type: "BUT", nom: "Information communication Parcours information numérique dans les organisations", majeur: "C", mineur: "I", met: "Documentaliste, chargé d’information", nbetab: "8", partPb: "100", TAt: "28.1", TAg: "54.5", TAt: "45", TAp: "0.8" },
+            { type: "BTS", nom: "Maintenance des véhicules option motocycles", majeur: "R", mineur: "C", met: "Mécanicien moto, technicien SAV", nbetab: "5", partPb: "80", TAt: "39.6", TAg: "17.6", TAt: "32.6", TAp: "50.2" },
+            { type: "BTS", nom: "Photonique : technologies et sciences de la lumière", majeur: "I", mineur: "R", met: "Technicien optique, ingénieur photonique", nbetab: "10", partPb: "90", TAt: "80.2", TAg: "35.3", TAt: "48.5", TAp: "16.5" },
+            { type: "Autre formation", nom: "Aéronautique option avionique", majeur: "R", mineur: "I", met: "Technicien avionique, électronicien aéronautique", nbetab: "5", partPb: "100", TAt: "42.8", TAg: "4.2", TAt: "2.2", TAp: "93.6" },
+            { type: "Autre formation", nom: "Technicien(ne) en réseaux électriques", majeur: "R", mineur: "C", met: "Électricien réseau, technicien ENEDIS", nbetab: "6", partPb: "100", TAt: "79", TAg: "1", TAt: "4.3", TAp: "94.7" },
+            { type: "BTS", nom: "Forge", majeur: "R", mineur: "C", met: "Forgeron industriel, technicien métallurgie", nbetab: "1", partPb: "100", TAt: "51", TAg: "67", TAt: "18", TAp: "15" },
+            { type: "Licence", nom: "Acoustique et Vibrations", majeur: "I", mineur: "R", met: "Acousticien, ingénieur vibrations", nbetab: "2", partPb: "100", TAt: "82", TAg: "93", TAt: "6", TAp: "1" },
+            { type: "Autre formation", nom: "Economie et gestion", majeur: "C", mineur: "E", met: "Analyste économique, gestionnaire", nbetab: "2", partPb: "100", TAt: "26.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Lettres", majeur: "A", mineur: "C", met: "Enseignant, écrivain, médiateur culturel", nbetab: "13", partPb: "92.3", TAt: "77.3", TAg: "86.8", TAt: "6.9", TAp: "6.3" },
+            { type: "Autre formation", nom: "Mathématiques", majeur: "I", mineur: "C", met: "Mathématicien, data analyst, enseignant", nbetab: "6", partPb: "100", TAt: "46.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences Des Données, Société et Santé", majeur: "I", mineur: "S", met: "Analyste SHS, data scientist, chercheur santé", nbetab: "1", partPb: "100", TAt: "53", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Perfectionnement sportif - Mention Natation course", majeur: "S", mineur: "R", met: "Entraîneur natation, éducateur sportif", nbetab: "1", partPb: "100", TAt: "13", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Métiers des bibliothèques et de la documentation", majeur: "C", mineur: "A", met: "Bibliothécaire, documentaliste", nbetab: "2", partPb: "100", TAt: "20.5", TAg: "86.5", TAt: "8.5", TAp: "4.5" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Sciences et Technologies Industrielles", majeur: "R", mineur: "I", met: "Prépa vers ingénierie, technicien supérieur", nbetab: "1", partPb: "100", TAt: "65", TAg: "53", TAt: "47", TAp: "0" },
+            { type: "Licence", nom: "Théologie Catholique", majeur: "I", mineur: "A", met: "Enseignant, chercheur en théologie", nbetab: "2", partPb: "100", TAt: "97", TAg: "80", TAt: "11.5", TAp: "8.5" },
+            { type: "Autre formation", nom: "Cycle préparatoire Physique Chimie, parcours renforcé", majeur: "I", mineur: "R", met: "Prépa vers physique/chimie, ingénierie", nbetab: "1", partPb: "100", TAt: "67", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "BTS", nom: "Podo-orthésiste", majeur: "S", mineur: "R", met: "Podo-orthésiste, technicien appareillage", nbetab: "3", partPb: "33.3", TAt: "67.3", TAg: "49.3", TAt: "36.3", TAp: "13.7" },
+            { type: "Licence", nom: "Cinéma et Audiovisuel", majeur: "A", mineur: "C", met: "Réalisateur, monteur, scénariste", nbetab: "6", partPb: "100", TAt: "25.5", TAg: "89.8", TAt: "5.7", TAp: "4.5" },
+            { type: "BTS", nom: "Maintenance des matériels de construction et de manutention", majeur: "R", mineur: "C", met: "Technicien engins, mécanicien industriel", nbetab: "8", partPb: "100", TAt: "69.9", TAg: "10.9", TAt: "22", TAp: "66.9" },
+            { type: "Licence", nom: "STAPS, Sciences pour l'ingénieur", majeur: "S", mineur: "I", met: "Coach sportif, ingénieur biomécanique", nbetab: "1", partPb: "100", TAt: "17", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "CPGE", nom: "B/L - Lettres et sciences sociales", majeur: "C", mineur: "S", met: "Enseignant, analyste politique, chercheur SHS", nbetab: "31", partPb: "71", TAt: "61.8", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Bâtiment et Construction", majeur: "R", mineur: "C", met: "Conducteur de travaux, technicien BTP", nbetab: "1", partPb: "100", TAt: "63", TAg: "54", TAt: "39", TAp: "7" },
+            { type: "Autre formation", nom: "Parcours physique-chimie", majeur: "I", mineur: "R", met: "Physicien, chimiste, enseignant", nbetab: "1", partPb: "100", TAt: "49", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "BTS", nom: "Mécatronique Navale", majeur: "R", mineur: "I", met: "Technicien naval, électromécanicien", nbetab: "5", partPb: "100", TAt: "49.8", TAg: "13.8", TAt: "22.8", TAp: "63.4" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Tennis de table", majeur: "S", mineur: "R", met: "Entraîneur, éducateur sportif", nbetab: "3", partPb: "100", TAt: "17", TAg: "41.7", TAt: "27.7", TAp: "30.7" },
+            { type: "BUT", nom: "Carrières sociales parcours villes et territoires durables", majeur: "S", mineur: "C", met: "Chargé de mission, coordinateur social", nbetab: "10", partPb: "100", TAt: "69.3", TAg: "67.2", TAt: "29.5", TAp: "3.1" },
+            { type: "Autre formation", nom: "Informatique", majeur: "I", mineur: "C", met: "Développeur, ingénieur logiciel", nbetab: "12", partPb: "100", TAt: "35.1", TAg: "99.2", TAt: "0.8", TAp: "0.1" },
+            { type: "Licence", nom: "Chimie, Sciences de la vie", majeur: "I", mineur: "R", met: "Chimiste, biologiste, technicien labo", nbetab: "4", partPb: "100", TAt: "36.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Technicien(ne) en peinture aéronautique", majeur: "R", mineur: "C", met: "Peintre aéronautique, technicien finition", nbetab: "3", partPb: "100", TAt: "72.7", TAg: "0", TAt: "0", TAp: "100" },
+            { type: "BTS", nom: "Pêche et gestion de l'environnement marin", majeur: "R", mineur: "S", met: "Technicien halieutique, gestionnaire littoral", nbetab: "10", partPb: "100", TAt: "74.5", TAg: "26.2", TAt: "20.5", TAp: "53.3" },
+            { type: "Autre formation", nom: "Classe Préparatoire Universitaire - Physique - Chimie", majeur: "I", mineur: "R", met: "Prépa vers ingénierie ou recherche", nbetab: "1", partPb: "100", TAt: "86", TAg: "98", TAt: "2", TAp: "0" },
+            { type: "Licence_Las", nom: "Administration économique et sociale", majeur: "C", mineur: "E", met: "Gestionnaire, chargé d’administration", nbetab: "6", partPb: "100", TAt: "72.5", TAg: "65.5", TAt: "24.2", TAp: "10.3" },
+            { type: "Autre formation", nom: "Sciences de la vie et de la terre", majeur: "I", mineur: "R", met: "Biologiste, géologue, enseignant SVT", nbetab: "6", partPb: "100", TAt: "48.7", TAg: "98.7", TAt: "1.3", TAp: "0" },
+            { type: "Licence", nom: "Droit, Sciences et Innovation", majeur: "C", mineur: "E", met: "Juriste, chargé d’innovation, analyste", nbetab: "1", partPb: "100", TAt: "40", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Infrastructures numériques", majeur: "I", mineur: "C", met: "Technicien réseau, ingénieur IT", nbetab: "1", partPb: "100", TAt: "30", TAg: "63", TAt: "26", TAp: "11" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences des données, arts et cultures", majeur: "I", mineur: "A", met: "Data analyst, médiateur culturel", nbetab: "1", partPb: "100", TAt: "30", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences de l'Homme, Anthropologie, Ethnologie", majeur: "S", mineur: "C", met: "Anthropologue, médiateur, chercheur SHS", nbetab: "1", partPb: "100", TAt: "68", TAg: "92", TAt: "5", TAp: "3" },
+            { type: "BTS", nom: "Aéronautique", majeur: "R", mineur: "I", met: "Mécanicien aéronautique, technicien propulsion", nbetab: "12", partPb: "91.7", TAt: "22.8", TAg: "44.8", TAt: "36.6", TAp: "18.8" },
+            { type: "Autre formation", nom: "Spécialité animateur - Mention Animation sociale", majeur: "S", mineur: "C", met: "Animateur social, éducateur spécialisé", nbetab: "2", partPb: "0", TAt: "19.5", TAg: "16", TAt: "27.5", TAp: "56.5" },
+            { type: "Licence", nom: "Langues, enseignement, médiation en milieu amazonien", majeur: "C", mineur: "S", met: "Médiateur culturel, enseignant, traducteur", nbetab: "1", partPb: "100", TAt: "100", TAg: "60", TAt: "17", TAp: "23" },
+            { type: "Autre formation", nom: "Formation des écoles supérieures de cuisine Bac +3", majeur: "R", mineur: "A", met: "Chef cuisinier, créateur culinaire", nbetab: "12", partPb: "0", TAt: "77.5", TAg: "82.1", TAt: "10.7", TAp: "7" },
+            { type: "Autre formation", nom: "Cycle Universitaire Préparatoire aux Grandes Ecoles - Physique et Mathématiques", majeur: "I", mineur: "C", met: "Prépa ingénieur, chercheur scientifique", nbetab: "1", partPb: "100", TAt: "34", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "BTS", nom: "Conception et industrialisation en construction navale", majeur: "R", mineur: "C", met: "Technicien naval, dessinateur-projeteur", nbetab: "1", partPb: "100", TAt: "55", TAg: "51", TAt: "41", TAp: "9" },
+            { type: "CPGE", nom: "TPC", majeur: "I", mineur: "R", met: "Prépa technologique vers chimie/physique", nbetab: "5", partPb: "100", TAt: "75", TAg: "0", TAt: "100", TAp: "0" },
+            { type: "BTS", nom: "Développement de l'agriculture des régions chaudes", majeur: "R", mineur: "S", met: "Agriculteur, technicien agro", nbetab: "4", partPb: "100", TAt: "76.8", TAg: "33", TAt: "34.8", TAp: "32.5" },
+            { type: "Licence", nom: "Sciences de l'Homme, Anthropologie, Ethnologie", majeur: "S", mineur: "C", met: "Anthropologue, chercheur, médiateur", nbetab: "7", partPb: "100", TAt: "90", TAg: "91.1", TAt: "5.7", TAp: "3.1" },
+            { type: "BTS", nom: "Finitions, aménagement des bâtiments: conception et réalisation", majeur: "R", mineur: "C", met: "Technicien finition, chef de chantier", nbetab: "10", partPb: "100", TAt: "51.1", TAg: "11.2", TAt: "43.4", TAp: "45.6" },
+            { type: "Autre formation", nom: "Cycle Universitaire de Préparation aux Grandes Ecoles Scientifiques", majeur: "I", mineur: "R", met: "Prépa vers ingénierie, recherche", nbetab: "1", partPb: "100", TAt: "50", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Animation", majeur: "S", mineur: "E", met: "Animateur, coordinateur, médiateur", nbetab: "9", partPb: "55.6", TAt: "7", TAg: "52.3", TAt: "46.2", TAp: "1.3" },
+            { type: "Licence_Las", nom: "Information et communication", majeur: "C", mineur: "A", met: "Chargé de com, community manager", nbetab: "2", partPb: "100", TAt: "87", TAg: "79.5", TAt: "16.5", TAp: "4" },
+            { type: "Licence", nom: "Droit, Economie", majeur: "C", mineur: "E", met: "Juriste, gestionnaire, analyste économique", nbetab: "1", partPb: "100", TAt: "25", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Science politique", majeur: "C", mineur: "S", met: "Analyste politique, chargé d’études", nbetab: "4", partPb: "100", TAt: "72.8", TAg: "85.8", TAt: "9.3", TAp: "5" },
+            { type: "Licence_Las", nom: "Sociologie", majeur: "S", mineur: "C", met: "Sociologue, chargé d’études sociales", nbetab: "2", partPb: "100", TAt: "60.5", TAg: "90.5", TAt: "6", TAp: "3.5" },
+            { type: "Autre formation", nom: "Parcours Informatique / Mathématiques", majeur: "I", mineur: "C", met: "Développeur, data scientist, ingénieur", nbetab: "1", partPb: "100", TAt: "69", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Technicien(ne) en chaudronnerie aéronautique et spatiale", majeur: "R", mineur: "C", met: "Chaudronnier aéronautique, technicien métal", nbetab: "4", partPb: "100", TAt: "54", TAg: "2.3", TAt: "4.3", TAp: "93.5" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Activités du Canoë-Kayak et disciplines associées en mer", majeur: "S", mineur: "R", met: "Moniteur kayak, éducateur sportif nautique", nbetab: "1", partPb: "100", TAt: "21", TAg: "67", TAt: "0", TAp: "33" },
+            { type: "Licence", nom: "Sciences de la vigne et du vin", majeur: "R", mineur: "S", met: "Œnologue, technicien viticole", nbetab: "1", partPb: "100", TAt: "95", TAg: "95", TAt: "5", TAp: "1" },
+            { type: "Autre formation", nom: "FCIL classe passerelle BTS option production", majeur: "R", mineur: "C", met: "Prépa vers métiers techniques", nbetab: "2", partPb: "100", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Perfectionnement sportif - Mention Triathlon et disciplines enchaînées", majeur: "S", mineur: "R", met: "Entraîneur, éducateur sportif", nbetab: "2", partPb: "100", TAt: "2", TAg: "0", TAt: "0", TAp: "50" },
+            { type: "Autre formation", nom: "Parcours mathématiques-physique", majeur: "I", mineur: "R", met: "Prépa ingénieur, chercheur scientifique", nbetab: "2", partPb: "100", TAt: "70.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle Universitaire Préparatoire aux Grandes Ecoles - Mathématiques et Physique", majeur: "I", mineur: "R", met: "Idem, vers ingénierie ou recherche", nbetab: "1", partPb: "100", TAt: "27", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Technicien de la mer et du littoral", majeur: "R", mineur: "S", met: "Technicien environnement marin", nbetab: "1", partPb: "100", TAt: "68", TAg: "75", TAt: "25", TAp: "0" },
+            { type: "BTS", nom: "Innovations textiles - Option B : Traitements", majeur: "R", mineur: "C", met: "Technicien textile, responsable qualité", nbetab: "1", partPb: "100", TAt: "66", TAg: "40", TAt: "27", TAp: "33" },
+            { type: "Licence", nom: "Etudes européennes et internationales", majeur: "C", mineur: "E", met: "Chargé d’affaires, analyste politique", nbetab: "7", partPb: "100", TAt: "70.7", TAg: "94.1", TAt: "5.7", TAp: "0.1" },
+            { type: "BTS", nom: "Environnement nucléaire", majeur: "R", mineur: "C", met: "Technicien nucléaire, agent sécurité", nbetab: "5", partPb: "100", TAt: "40.8", TAg: "24.8", TAt: "43.6", TAp: "31.2" },
+            { type: "Autre formation", nom: "Histoire", majeur: "C", mineur: "A", met: "Enseignant, historien, archiviste", nbetab: "2", partPb: "100", TAt: "69", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Instrument", majeur: "A", mineur: "R", met: "Musicien, luthier, technicien son", nbetab: "1", partPb: "100", TAt: "23", TAg: "57", TAt: "35", TAp: "8" },
+            { type: "Autre formation", nom: "Bâtiment et travaux publics", majeur: "R", mineur: "C", met: "Conducteur de travaux, chef de chantier", nbetab: "1", partPb: "100", TAt: "88", TAg: "35", TAt: "59", TAp: "6" },
+            { type: "Autre formation", nom: "DSP - Agent d'accueil des publics de l'éducation artistique et culturelle", majeur: "S", mineur: "C", met: "Médiateur culturel, agent d’accueil", nbetab: "1", partPb: "100", TAt: "86", TAg: "67", TAt: "10", TAp: "23" },
+            { type: "BUT", nom: "Carrières sociales Parcours éducation spécialisée", majeur: "S", mineur: "C", met: "Éducateur spécialisé, coordinateur social", nbetab: "7", partPb: "100", TAt: "20.9", TAg: "47.4", TAt: "47.3", TAp: "5.3" },
+            { type: "BTS", nom: "Maintenance des systèmes - option D:  maintenance des ascenseurs et élévateurs", majeur: "R", mineur: "C", met: "Technicien ascenseurs, maintenance", nbetab: "6", partPb: "100", TAt: "71", TAg: "4.2", TAt: "11.3", TAp: "84.7" },
+            { type: "Licence_Las", nom: "Géographie et aménagement", majeur: "C", mineur: "R", met: "Urbaniste, géographe, chargé d’études", nbetab: "6", partPb: "100", TAt: "71.5", TAg: "85.5", TAt: "8.3", TAp: "6.3" },
+            { type: "Autre formation", nom: "Prep'ISIMA", majeur: "I", mineur: "C", met: "Prépa ingénieur informatique", nbetab: "1", partPb: "100", TAt: "33", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle Préparatoire Lettres  - Licence renforcée", majeur: "A", mineur: "C", met: "Prépa vers métiers culturels", nbetab: "1", partPb: "100", TAt: "83", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences", majeur: "I", mineur: "R", met: "Chercheur, ingénieur, enseignant", nbetab: "3", partPb: "100", TAt: "29.7", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Economie, Mathématiques", majeur: "C", mineur: "I", met: "Analyste, économiste, data scientist", nbetab: "1", partPb: "100", TAt: "29", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Pratique et gestion des activités physiques, sportives et de loisirs pour les publics séniors", majeur: "S", mineur: "R", met: "Coach senior, animateur sport santé", nbetab: "2", partPb: "100", TAt: "66", TAg: "69.5", TAt: "21.5", TAp: "9.5" },
+            { type: "Licence", nom: "Etudes culturelles", majeur: "A", mineur: "C", met: "Médiateur culturel, chargé de projet", nbetab: "5", partPb: "100", TAt: "91", TAg: "88.6", TAt: "6.6", TAp: "4.8" },
+            { type: "Licence_Las", nom: "Mécanique", majeur: "R", mineur: "I", met: "Ingénieur mécanique, technicien CAO", nbetab: "2", partPb: "100", TAt: "69", TAg: "95", TAt: "5", TAp: "0" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Economie-Gestion", majeur: "C", mineur: "E", met: "Prépa commerce, gestion, finance", nbetab: "1", partPb: "100", TAt: "99", TAg: "23", TAt: "65", TAp: "12" },
+            { type: "BTS", nom: "Maintenance des systèmes électro-navals", majeur: "R", mineur: "I", met: "Technicien naval, électromécanicien", nbetab: "4", partPb: "100", TAt: "70", TAg: "17.3", TAt: "0", TAp: "82.8" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Judo-Jujitsu", majeur: "S", mineur: "R", met: "Entraîneur, éducateur sportif", nbetab: "2", partPb: "100", TAt: "28", TAg: "76.5", TAt: "19.5", TAp: "4" },
+            { type: "Licence", nom: "Histoire / Géographie", majeur: "C", mineur: "A", met: "Enseignant, médiateur culturel", nbetab: "2", partPb: "100", TAt: "68", TAg: "95", TAt: "4", TAp: "1.5" },
+            { type: "BTS", nom: "QUalité, ALimentation, Innovation et Maîtrise Sanitaire (BioQUALIM) produits laitiers", majeur: "I", mineur: "R", met: "Technicien qualité, agroalimentaire", nbetab: "5", partPb: "100", TAt: "88.8", TAg: "36", TAt: "38.6", TAp: "25.4" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences sociales", majeur: "S", mineur: "C", met: "Sociologue, éducateur, analyste SHS", nbetab: "1", partPb: "100", TAt: "49", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Activités physiques et sportives adaptées : déficiences intellectuelles, troubles psychiques", majeur: "S", mineur: "R", met: "Éducateur APA, coach santé", nbetab: "1", partPb: "100", TAt: "45", TAg: "60", TAt: "27", TAp: "13" },
+            { type: "BTS", nom: "Prothésiste orthésiste", majeur: "S", mineur: "R", met: "Technicien appareillage, orthésiste", nbetab: "6", partPb: "50", TAt: "25.3", TAg: "57.2", TAt: "32", TAp: "11" },
+            { type: "BTS", nom: "Conception de processus de découpe et d'emboutissage", majeur: "R", mineur: "C", met: "Technicien outillage, opérateur industriel", nbetab: "3", partPb: "100", TAt: "84.7", TAg: "21.3", TAt: "50", TAp: "28.3" },
+            { type: "Autre formation", nom: "Physique, chimie", majeur: "I", mineur: "R", met: "Physicien, chimiste, enseignant", nbetab: "4", partPb: "100", TAt: "48.5", TAg: "98.8", TAt: "1.3", TAp: "0" },
+            { type: "Autre formation", nom: "Parcours scientifique renforcé", majeur: "I", mineur: "R", met: "Prépa vers recherche ou ingénierie", nbetab: "1", partPb: "100", TAt: "66", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences du langage", majeur: "C", mineur: "A", met: "Orthophoniste, linguiste, médiateur", nbetab: "3", partPb: "100", TAt: "23", TAg: "93.7", TAt: "6.3", TAp: "0" },
+            { type: "Licence_Las", nom: "Formation d'ingénieur Bac + 5", majeur: "I", mineur: "R", met: "Ingénieur généraliste, technicien R&D", nbetab: "2", partPb: "100", TAt: "56", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Informatique, Sciences de la vie", majeur: "I", mineur: "R", met: "Bioinformaticien, développeur santé", nbetab: "2", partPb: "100", TAt: "38.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Innovation sociale", majeur: "S", mineur: "C", met: "Chargé de mission, coordinateur projet", nbetab: "4", partPb: "50", TAt: "42.3", TAg: "49", TAt: "42.8", TAp: "8.8" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Canoë-Kayak en eau vive", majeur: "S", mineur: "R", met: "Moniteur kayak, éducateur sportif", nbetab: "1", partPb: "100", TAt: "7", TAg: "0", TAt: "100", TAp: "0" },
+            { type: "Licence_Las", nom: "Musicologie", majeur: "A", mineur: "C", met: "Musicologue, enseignant musique", nbetab: "1", partPb: "100", TAt: "62", TAg: "95", TAt: "2", TAp: "3" },
+            { type: "Autre formation", nom: "Formation des écoles supérieures de cuisine Bac +4", majeur: "R", mineur: "A", met: "Chef cuisinier, créateur culinaire", nbetab: "2", partPb: "0", TAt: "83.5", TAg: "87", TAt: "10.5", TAp: "2.5" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences - Environnement - Société", majeur: "I", mineur: "S", met: "Analyste SHS, chargé de mission environnement", nbetab: "1", partPb: "100", TAt: "50", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle Universitaire Préparatoire aux Grandes Ecoles", majeur: "I", mineur: "R", met: "Prépa vers grandes écoles scientifiques", nbetab: "3", partPb: "100", TAt: "74.7", TAg: "99.7", TAt: "0.3", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences sanitaires et sociales", majeur: "S", mineur: "C", met: "Éducateur, chargé de mission santé", nbetab: "5", partPb: "100", TAt: "45.2", TAg: "79.8", TAt: "18.6", TAp: "1.6" },
+            { type: "Licence", nom: "Sciences cognitives", majeur: "I", mineur: "S", met: "Chercheur, UX designer, neuropsychologue", nbetab: "1", partPb: "100", TAt: "26", TAg: "94", TAt: "4", TAp: "2" },
+            { type: "Licence", nom: "Sciences de la Terre et environnement", majeur: "R", mineur: "I", met: "Géologue, hydrologue, enseignant SVT", nbetab: "2", partPb: "100", TAt: "59", TAg: "94.5", TAt: "4.5", TAp: "1" },
+            { type: "Autre formation", nom: "Cursus préparatoire aux concours des grandes écoles d'ingénieurs", majeur: "I", mineur: "R", met: "Prépa vers ingénierie, recherche", nbetab: "1", partPb: "100", TAt: "48", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Humanités et société", majeur: "C", mineur: "S", met: "Enseignant, analyste SHS, médiateur", nbetab: "1", partPb: "100", TAt: "9", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences biomédicales", majeur: "I", mineur: "S", met: "Technicien biomédical, chercheur santé", nbetab: "1", partPb: "100", TAt: "25", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Technicien en qualité et distribution des produits alimentaires", majeur: "R", mineur: "C", met: "Technicien qualité, contrôleur agro", nbetab: "1", partPb: "100", TAt: "98", TAg: "70", TAt: "23", TAp: "7" },
+            { type: "Autre formation", nom: "Classe de mise à niveau au BTS Maritime Pêche et Gestion de l'Environnement Marin", majeur: "R", mineur: "S", met: "Prépa vers technicien halieutique", nbetab: "1", partPb: "100", TAt: "34", TAg: "70", TAt: "28", TAp: "2" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Voile multi-supports jusqu'à 6 miles nautique d'un abri", majeur: "S", mineur: "R", met: "Moniteur voile, éducateur nautique", nbetab: "1", partPb: "100", TAt: "6", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences de l'éducation et de la formation", majeur: "S", mineur: "C", met: "Enseignant, formateur, conseiller pédagogique", nbetab: "3", partPb: "100", TAt: "40.7", TAg: "84.3", TAt: "11.7", TAp: "4.3" },
+            { type: "Autre formation", nom: "DSP - Design et métiers du bois (de la forêt au salon)", majeur: "A", mineur: "R", met: "Designer bois, ébéniste, relieur", nbetab: "1", partPb: "100", TAt: "47", TAg: "64", TAt: "21", TAp: "14" },
+            { type: "Autre formation", nom: "Production, contrôles et qualité des produits de santé", majeur: "I", mineur: "C", met: "Technicien qualité, analyste pharmaceutique", nbetab: "1", partPb: "100", TAt: "21", TAg: "58", TAt: "37", TAp: "5" },
+            { type: "Autre formation", nom: "Formation de base aux métiers du théâtre", majeur: "A", mineur: "C", met: "Comédien, régisseur, scénographe", nbetab: "1", partPb: "100", TAt: "34", TAg: "95", TAt: "5", TAp: "0" },
+            { type: "Autre formation", nom: "Diplôme d'Université CAES", majeur: "Variable", mineur: "Variable", met: "Selon spécialité (santé, droit, etc.)", nbetab: "3", partPb: "100", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Electronique, énergie électrique, automatique", majeur: "R", mineur: "I", met: "Ingénieur électrotechnique, automaticien", nbetab: "2", partPb: "100", TAt: "91", TAg: "82", TAt: "11", TAp: "7" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences de la matière", majeur: "I", mineur: "R", met: "Physicien, chimiste, ingénieur matériaux", nbetab: "1", partPb: "100", TAt: "80", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Littéraire", majeur: "A", mineur: "C", met: "Prépa vers métiers culturels et lettres", nbetab: "2", partPb: "100", TAt: "62.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Perfectionnement sportif - MentionVélo tout terrain", majeur: "S", mineur: "R", met: "Entraîneur VTT, éducateur sportif", nbetab: "1", partPb: "100", TAt: "3", TAg: "50", TAt: "50", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Animateur - Mention Animation culturelle", majeur: "S", mineur: "A", met: "Animateur culturel, médiateur artistique", nbetab: "1", partPb: "0", TAt: "38", TAg: "40", TAt: "0", TAp: "60" },
+            { type: "Licence_Las", nom: "Pluridisciplinaire", majeur: "Variable", mineur: "Variable", met: "Selon parcours : enseignant, analyste, médiateur", nbetab: "2", partPb: "50", TAt: "79", TAg: "95", TAt: "4.5", TAp: "0.5" },
+            { type: "Autre formation", nom: "Classe préparatoire aux études supérieures - Sciences politiques et sociales", majeur: "C", mineur: "S", met: "Prépa vers métiers publics, analyste SHS", nbetab: "1", partPb: "100", TAt: "45", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Sciences, Enseignement, Médiation", majeur: "S", mineur: "C", met: "Enseignant, médiateur, formateur", nbetab: "1", partPb: "100", TAt: "98", TAg: "68", TAt: "18", TAp: "14" },
+            { type: "Autre formation", nom: "Classe Préparatoire Universitaire Mathématiques - Physique - Informatique", majeur: "I", mineur: "C", met: "Prépa ingénieur, data scientist", nbetab: "1", partPb: "100", TAt: "53", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Informatique, Mathématiques", majeur: "I", mineur: "C", met: "Développeur, ingénieur logiciel", nbetab: "1", partPb: "100", TAt: "23", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Histoire / Allemand", majeur: "C", mineur: "A", met: "Enseignant, médiateur culturel", nbetab: "1", partPb: "100", TAt: "100", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "CPGE", nom: "Option lettres et sciences humaines (St Cyr)", majeur: "C", mineur: "S", met: "Officier, enseignant, analyste politique", nbetab: "3", partPb: "100", TAt: "26", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Golf", majeur: "S", mineur: "R", met: "Entraîneur golf, éducateur sportif", nbetab: "1", partPb: "100", TAt: "12", TAg: "33", TAt: "67", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences et technologies", majeur: "I", mineur: "R", met: "Ingénieur, technicien, enseignant", nbetab: "5", partPb: "100", TAt: "41.2", TAg: "97.4", TAt: "2.4", TAp: "0.2" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Economie", majeur: "C", mineur: "E", met: "Analyste économique, gestionnaire", nbetab: "1", partPb: "100", TAt: "78", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Ecole d'Ingénieur", nom: "Formation Bac + 4", majeur: "I", mineur: "R", met: "Ingénieur généraliste, technicien supérieur", nbetab: "1", partPb: "100", TAt: "48", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "Autre formation", nom: "Analyse des milieux biologiques", majeur: "I", mineur: "R", met: "Technicien bio, analyste environnement", nbetab: "1", partPb: "100", TAt: "66", TAg: "76", TAt: "24", TAp: "1" },
+            { type: "BTS", nom: "Gestion et protection de la nature / DE d'alpinisme-accompagnateur en moyenne montagne", majeur: "R", mineur: "S", met: "Accompagnateur montagne, technicien nature", nbetab: "1", partPb: "100", TAt: "6", TAg: "50", TAt: "38", TAp: "12" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Humanités, Lettres et Sociétés", majeur: "C", mineur: "A", met: "Enseignant, médiateur culturel", nbetab: "1", partPb: "100", TAt: "46", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "DSP - Patrimoine bâti : métiers de la construction et du patrimoine", majeur: "R", mineur: "C", met: "Restaurateur patrimoine, technicien bâtiment", nbetab: "1", partPb: "100", TAt: "62", TAg: "48", TAt: "30", TAp: "21" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences de la transition écologique et sociétale", majeur: "I", mineur: "S", met: "Chargé mission environnement, analyste SHS", nbetab: "1", partPb: "100", TAt: "76", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "Autre formation", nom: "Peinture décoration", majeur: "A", mineur: "R", met: "Peintre décorateur, artisan finition", nbetab: "1", partPb: "100", TAt: "94", TAg: "40", TAt: "20", TAp: "40" },
+            { type: "Autre formation", nom: "DSP - Formation aux métiers de la sécurité et de la gendarmerie", majeur: "R", mineur: "C", met: "Agent sécurité, gendarme, technicien sûreté", nbetab: "3", partPb: "0", TAt: "58", TAg: "62", TAt: "25.3", TAp: "12.7" },
+            { type: "Autre formation", nom: "Activités physiques et sportives et inadaptations sociales", majeur: "S", mineur: "R", met: "Éducateur APA, animateur santé", nbetab: "1", partPb: "100", TAt: "39", TAg: "72", TAt: "22", TAp: "6" },
+            { type: "Autre formation", nom: "Mise à niveau pour l'accès au BTS MASEN", majeur: "R", mineur: "C", met: "Prépa vers technicien énergie", nbetab: "1", partPb: "100", TAt: "62", TAg: "51", TAt: "27", TAp: "22" },
+            { type: "Licence", nom: "Lettres / Sciences du langage", majeur: "A", mineur: "C", met: "Enseignant, linguiste, médiateur culturel", nbetab: "1", partPb: "100", TAt: "97", TAg: "82", TAt: "11", TAp: "7" },
+            { type: "Autre formation", nom: "DSP - Assistant designer web", majeur: "A", mineur: "C", met: "Webdesigner, maquettiste numérique", nbetab: "1", partPb: "0", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Sciences des systèmes communicants", majeur: "I", mineur: "C", met: "Ingénieur télécom, développeur", nbetab: "1", partPb: "100", TAt: "73", TAg: "82", TAt: "17", TAp: "2" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Sciences pour l'ingénieur - Economie", majeur: "I", mineur: "C", met: "Ingénieur, analyste, gestionnaire", nbetab: "1", partPb: "100", TAt: "75", TAg: "86", TAt: "13", TAp: "1" },
+            { type: "Autre formation", nom: "Spécialité Perfectionnement sportif - Mention Athlétisme et disciplines associées", majeur: "S", mineur: "R", met: "Entraîneur, préparateur physique", nbetab: "1", partPb: "100", TAt: "5", TAg: "50", TAt: "0", TAp: "50" },
+            { type: "Autre formation", nom: "Guide nature multilingue", majeur: "S", mineur: "R", met: "Guide environnement, animateur nature", nbetab: "1", partPb: "100", TAt: "90", TAg: "78", TAt: "21", TAp: "1" },
+            { type: "Autre formation", nom: "Technicien en environnement et déchets", majeur: "R", mineur: "C", met: "Technicien déchets, agent environnement", nbetab: "1", partPb: "100", TAt: "71", TAg: "75", TAt: "22", TAp: "3" },
+            { type: "Licence", nom: "Histoire de l'art", majeur: "A", mineur: "C", met: "Historien d’art, conservateur, médiateur", nbetab: "1", partPb: "100", TAt: "100", TAg: "79", TAt: "15", TAp: "6" },
+            { type: "Autre formation", nom: "Mécanique", majeur: "R", mineur: "I", met: "Technicien mécanique, ingénieur CAO", nbetab: "1", partPb: "100", TAt: "19", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Electronique, énergie électrique, automatique", majeur: "R", mineur: "I", met: "Automaticien, ingénieur électrotechnique", nbetab: "3", partPb: "100", TAt: "30.7", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Dispositif SAS - Préparation à l'apprentissage", majeur: "Variable", mineur: "Variable", met: "Orientation vers filière pro", nbetab: "2", partPb: "100", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Santé environnement : Techniques de laboratoire", majeur: "I", mineur: "S", met: "Technicien biomédical, analyste santé", nbetab: "1", partPb: "100", TAt: "60", TAg: "89", TAt: "11", TAp: "0" },
+            { type: "Licence", nom: "Théologie Protestante", majeur: "I", mineur: "A", met: "Enseignant, médiateur religieux", nbetab: "2", partPb: "50", TAt: "49", TAg: "38.5", TAt: "5.5", TAp: "6" },
+            { type: "BTS", nom: "Innovations textiles - Option A : Structures", majeur: "R", mineur: "C", met: "Technicien textile, responsable production", nbetab: "1", partPb: "100", TAt: "87", TAg: "36", TAt: "32", TAp: "32" },
+            { type: "BTS", nom: "Edition", majeur: "A", mineur: "C", met: "Éditeur, maquettiste, correcteur", nbetab: "1", partPb: "100", TAt: "21", TAg: "48", TAt: "25", TAp: "28" },
+            { type: "Autre formation", nom: "Cycle Universitaire Préparatoire aux Grandes Écoles de commerce", majeur: "C", mineur: "E", met: "Prépa vers écoles de commerce", nbetab: "1", partPb: "100", TAt: "47", TAg: "99", TAt: "0", TAp: "1" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Activités équestres", majeur: "S", mineur: "R", met: "Moniteur équitation, éducateur sportif", nbetab: "1", partPb: "100", TAt: "5", TAg: "40", TAt: "20", TAp: "40" },
+            { type: "Licence", nom: "Génie urbain", majeur: "R", mineur: "C", met: "Urbaniste, ingénieur aménagement", nbetab: "1", partPb: "100", TAt: "16", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Spécialité Animateur - Mention Activités du cirque", majeur: "S", mineur: "A", met: "Animateur cirque, éducateur artistique", nbetab: "1", partPb: "0", TAt: "30", TAg: "83", TAt: "0", TAp: "17" },
+            { type: "Licence", nom: "Droit, Informatique", majeur: "C", mineur: "I", met: "Juriste numérique, analyste RGPD", nbetab: "1", partPb: "100", TAt: "26", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Droit, Sciences et Innovation", majeur: "C", mineur: "E", met: "Juriste, chargé d’innovation", nbetab: "1", partPb: "100", TAt: "36", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Bureautique et Communication Multimédia", majeur: "C", mineur: "A", met: "Assistant com, technicien bureautique", nbetab: "1", partPb: "100", TAt: "47", TAg: "36", TAt: "51", TAp: "13" },
+            { type: "Licence_Las", nom: "Gestion", majeur: "C", mineur: "E", met: "Gestionnaire, analyste, responsable admin", nbetab: "1", partPb: "100", TAt: "25", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence_Las", nom: "Histoire de l'art et archéologie", majeur: "A", mineur: "C", met: "Archéologue, historien d’art, conservateur", nbetab: "2", partPb: "100", TAt: "79.5", TAg: "86.5", TAt: "11", TAp: "2.5" },
+            { type: "Autre formation", nom: "Spécialité Educateur sportif - Mention Activités du canoë-kayak et disciplines associées en eau vive jusqu'à classe III, en eau calme et en mer jusqu'à IV Beaufort", majeur: "S", mineur: "R", met: "Moniteur kayak, éducateur nautique", nbetab: "1", partPb: "100", TAt: "21", TAg: "86", TAt: "0", TAp: "14" },
+            { type: "Licence_Las", nom: "Santé et société", majeur: "S", mineur: "C", met: "Chargé de mission santé, éducateur", nbetab: "1", partPb: "100", TAt: "21", TAg: "91", TAt: "6", TAp: "3" },
+            { type: "Licence", nom: "Mathématiques, physique, chimie, informatique", majeur: "I", mineur: "C", met: "Ingénieur, data scientist, enseignant", nbetab: "1", partPb: "100", TAt: "23", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Mathématiques, Physique et Sciences pour l'Ingénieur", majeur: "I", mineur: "R", met: "Ingénieur, technicien, chercheur", nbetab: "2", partPb: "100", TAt: "25.5", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Intervention Sociale", majeur: "S", mineur: "C", met: "Travailleur social, coordinateur", nbetab: "1", partPb: "100", TAt: "83", TAg: "39", TAt: "48", TAp: "13" },
+            { type: "Autre formation", nom: "Accueil d'excellence en tourisme", majeur: "E", mineur: "S", met: "Réceptionniste, agent tourisme haut de gamme", nbetab: "1", partPb: "100", TAt: "63", TAg: "69", TAt: "19", TAp: "12" },
+            { type: "Licence", nom: "Santé et société", majeur: "S", mineur: "C", met: "Chargé de mission santé, éducateur", nbetab: "1", partPb: "100", TAt: "32", TAg: "93", TAt: "3", TAp: "4" },
+            { type: "Licence_Las", nom: "Administration et Echanges internationaux", majeur: "C", mineur: "E", met: "Chargé commerce international, gestionnaire", nbetab: "1", partPb: "100", TAt: "21", TAg: "87", TAt: "12", TAp: "1" },
+            { type: "Autre formation", nom: "Cycle universitaire préparatoire aux grandes écoles", majeur: "I", mineur: "C", met: "Prépa vers ingénierie ou commerce", nbetab: "1", partPb: "100", TAt: "49", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Mathématique - Préparation aux écoles d'ingénieurs", majeur: "I", mineur: "C", met: "Prépa ingénieur, data scientist", nbetab: "1", partPb: "100", TAt: "70", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Aumônerie protestante, médiation et société", majeur: "S", mineur: "I", met: "Aumônier, médiateur religieux", nbetab: "1", partPb: "0", TAt: "0", TAg: "0", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Technologies de l'organisation dans les professions de santé", majeur: "C", mineur: "S", met: "Gestionnaire santé, coordinateur", nbetab: "1", partPb: "100", TAt: "77", TAg: "60", TAt: "34", TAp: "6" },
+            { type: "Autre formation", nom: "Médiations citoyennes", majeur: "S", mineur: "C", met: "Médiateur social, animateur citoyen", nbetab: "1", partPb: "100", TAt: "85", TAg: "61", TAt: "25", TAp: "14" },
+            { type: "Autre formation", nom: "Génie civil", majeur: "R", mineur: "C", met: "Ingénieur BTP, conducteur de travaux", nbetab: "1", partPb: "100", TAt: "50", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Licence", nom: "Mathématiques, Sciences de la vie", majeur: "I", mineur: "R", met: "Biostatisticien, biologiste, data scientist", nbetab: "1", partPb: "100", TAt: "42", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle universitaire préparatoire aux grandes écoles - Mécanique", majeur: "R", mineur: "I", met: "Prépa vers ingénieur mécanique, technicien CAO", nbetab: "1", partPb: "100", TAt: "67", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Cycle pluridisciplinaire d'Études Supérieures - Mobilités douces, développement durable et ouverture internationale", majeur: "I", mineur: "S", met: "Chargé de mission mobilité, urbaniste durable", nbetab: "1", partPb: "100", TAt: "98", TAg: "99", TAt: "1", TAp: "0" },
+            { type: "Autre formation", nom: "Animation, commercialisation des services sportifs", majeur: "S", mineur: "E", met: "Animateur sportif, chargé de développement", nbetab: "1", partPb: "100", TAt: "8", TAg: "68", TAt: "29", TAp: "4" },
+            { type: "Licence", nom: "Lettres / Histoire", majeur: "A", mineur: "C", met: "Enseignant, médiateur culturel, archiviste", nbetab: "1", partPb: "100", TAt: "52", TAg: "98", TAt: "1", TAp: "0" },
+            { type: "BTS", nom: "Industries céramiques", majeur: "R", mineur: "C", met: "Technicien céramique, opérateur industriel", nbetab: "1", partPb: "100", TAt: "100", TAg: "32", TAt: "51", TAp: "17" },
+            { type: "Licence_Las", nom: "Histoire / Géographie", majeur: "C", mineur: "A", met: "Enseignant, médiateur culturel, chargé d’études", nbetab: "1", partPb: "100", TAt: "98", TAg: "80", TAt: "17", TAp: "3" },
+            { type: "Autre formation", nom: "Cycle universitaire préparatoire aux grandes écoles - Physique", majeur: "I", mineur: "R", met: "Prépa vers ingénieur, chercheur en physique", nbetab: "1", partPb: "100", TAt: "72", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "Chargé de mission qualité, sécurité, santé au travail et environnement (Bac + 3)", majeur: "C", mineur: "I", met: "Responsable QHSE, coordinateur prévention", nbetab: "1", partPb: "0", TAt: "48", TAg: "87", TAt: "13", TAp: "0" },
+            { type: "Autre formation", nom: "Préparation aux concours des écoles de commerce, Parcours Economie- Finance", majeur: "C", mineur: "E", met: "Analyste financier, gestionnaire, consultant", nbetab: "1", partPb: "0", TAt: "49", TAg: "100", TAt: "0", TAp: "0" },
+            { type: "Autre formation", nom: "DSP - Sécurité informatique : réseaux et cyber sécurité", majeur: "I", mineur: "C", met: "Analyste cybersécurité, ingénieur réseau", nbetab: "1", partPb: "100", TAt: "17", TAg: "61", TAt: "19", TAp: "20" }
+        ]
+        const form = document.getElementById("riasecForm");
+        const results = document.getElementById("results");
+
+        form.addEventListener("change", updateResults);
+        document.getElementById("typeSelect").addEventListener("change", updateResults);
+
+        function updateResults() {
+            const checkedBoxes = Array.from(form.querySelectorAll("input[type=checkbox]:checked"));
+            const selectedCodes = checkedBoxes.map(box => box.value);
+            const typeSelect = document.getElementById("typeSelect");
+            const selectedTypes = Array.from(typeSelect.selectedOptions).map(opt => opt.value);
+
+            let filtered = formations;
+            // Appliquer le filtre type sur la liste complète
+            if (selectedTypes.length > 0) {
+                filtered = formations.filter(f => selectedTypes.includes(f.type));
+            }
+            // Appliquer le filtre RIASEC sur la liste complète ou le sous-ensemble type
+            if (selectedCodes.length === 1) {
+                const code = selectedCodes[0];
+                const majorMatch = filtered.filter(f => f.majeur === code);
+                const minorMatch = filtered.filter(f => f.mineur === code && f.majeur !== code);
+                filtered = [...majorMatch, ...minorMatch];
+            } else if (selectedCodes.length === 2) {
+                const code1 = selectedCodes[0];
+                const code2 = selectedCodes[1];
+                const bothMajorMinor = filtered.filter(f =>
+                    (f.majeur === code1 && f.mineur === code2) ||
+                    (f.majeur === code2 && f.mineur === code1)
+                );
+                const oneMajor = filtered.filter(f =>
+                    ((f.majeur === code1 || f.majeur === code2) && !((f.majeur === code1 && f.mineur === code2) || (f.majeur === code2 && f.mineur === code1)))
+                );
+                const oneMinor = filtered.filter(f =>
+                    ((f.mineur === code1 || f.mineur === code2) && !(f.majeur === code1 || f.majeur === code2))
+                );
+                filtered = [...bothMajorMinor, ...oneMajor, ...oneMinor];
+            } else if (selectedCodes.length > 2) {
+                filtered = filtered.filter(f => selectedCodes.includes(f.majeur) || selectedCodes.includes(f.mineur));
+            }
+
+            let message = "";
+            if (selectedCodes.length === 0) {
+                message = "<p>Aucune formation n'apparaît tant que vous n'avez pas sélectionné de domaine.</p>";
+            } else if (filtered.length > 0) {
+                const count = filtered.length;
+                message = `<p><strong>${count}</strong> formation(s) correspond(ent) à votre sélection.</p>`;
+            } else {
+                message = `<p>Aucune formation ne correspond à votre sélection.</p>`;
+            }
+
+            results.innerHTML = message;
+
+            if (filtered.length > 0) {
+                let sorted = [];
+                if (selectedCodes.length === 1) {
+                    const code = selectedCodes[0];
+                    const majorMatch = filtered.filter(f => f.majeur === code);
+                    const minorMatch = filtered.filter(f => f.mineur === code && f.majeur !== code);
+                    majorMatch.sort((a, b) => a.nom.localeCompare(b.nom));
+                    minorMatch.sort((a, b) => a.nom.localeCompare(b.nom));
+                    sorted = [...majorMatch, ...minorMatch];
+                } else if (selectedCodes.length === 2) {
+                    const code1 = selectedCodes[0];
+                    const code2 = selectedCodes[1];
+                    const bothMajorMinor = filtered.filter(f =>
+                        (f.majeur === code1 && f.mineur === code2) ||
+                        (f.majeur === code2 && f.mineur === code1)
+                    );
+                    const oneMajor = filtered.filter(f =>
+                        ((f.majeur === code1 || f.majeur === code2) && !((f.majeur === code1 && f.mineur === code2) || (f.majeur === code2 && f.mineur === code1)))
+                    );
+                    const oneMinor = filtered.filter(f =>
+                        ((f.mineur === code1 || f.mineur === code2) && !(f.majeur === code1 || f.majeur === code2))
+                    );
+                    bothMajorMinor.sort((a, b) => a.nom.localeCompare(b.nom));
+                    oneMajor.sort((a, b) => a.nom.localeCompare(b.nom));
+                    oneMinor.sort((a, b) => a.nom.localeCompare(b.nom));
+                    sorted = [...bothMajorMinor, ...oneMajor, ...oneMinor];
+                } else {
+                    sorted = filtered.slice().sort((a, b) => a.nom.localeCompare(b.nom));
+                }
+                sorted.forEach(f => {
+                    const div = document.createElement("div");
+                    div.className = "formation";
+                    div.innerHTML = `
+                    <strong>${f.nom}</strong><br>
+                    <span style="color:#1976d2;font-weight:bold;">${f.type || ''}</span><br>
+                    <em>Métier(s) associé(s) :</em> ${f.met || ''}<br>
+                    <em>Domaine majeur :</em> <span style="font-weight:bold;">${f.majeur}</span> &nbsp; <em>mineur :</em> <span style="font-weight:bold;">${f.mineur}</span><br>
+                    <em>Taux d'accès Parcoursup :</em> <span style="font-weight:bold;">${f.TAt || ''}%</span><br>
+                    <em>Bac général :</em> <span style="font-weight:bold;">${f.TAg || ''}%</span> &nbsp; <em>Bac techno :</em> <span style="font-weight:bold;">${f.TAt || ''}%</span> &nbsp; <em>Bac pro :</em> <span style="font-weight:bold;">${f.TAp || ''}%</span><br>
+                    <em>Nombre d'établissements :</em> <span style="font-weight:bold;">${f.nbetab !== undefined ? f.nbetab : ''}</span><br>
+                    <em>Part d'établissements publics :</em> <span style="font-weight:bold;">${f.partPb !== undefined ? f.partPb + '%' : ''}</span>
+                `;
+                    results.appendChild(div);
+                });
+            }
+        }
+        updateResults();
+
+        // Gestion de la modale À propos
+        document.getElementById("aboutBtn").addEventListener("click", function () {
+            document.getElementById("aboutModal").style.display = "block";
+        });
+        document.getElementById("closeAbout").addEventListener("click", function () {
+            document.getElementById("aboutModal").style.display = "none";
+        });
+        document.getElementById("aboutModal").addEventListener("click", function (e) {
+            if (e.target === this) {
+                this.style.display = "none";
+            }
+        });
+    </script>
+</body>
+</html>
